@@ -1,0 +1,23 @@
+[package]
+name = "mandate"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "Quiet Treasury mandate registry: DAO-only create/cancel, agent-only progress, anchored settlement"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+near-sdk = "5.9"
+
+[dev-dependencies]
+near-sdk = { version = "5.9", features = ["unit-testing"] }
+
+[profile.release]
+codegen-units = 1
+opt-level = "z"
+lto = true
+debug = false
+panic = "abort"
+overflow-checks = true
