@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import { useState } from 'react';
 import { ENV, getDaoPolicy, getMandates, getProposals, getTrust } from '@/lib/data';
 import { PageHead, Src, StatusPill, useAsync, View } from '@/components/ui';
@@ -40,8 +40,9 @@ export default function Votes() {
   const policy = useAsync(getDaoPolicy, []);
   const [msg, setMsg] = useState<Record<number, string>>({});
 
-  async function vote(id: number, action: 'VoteApprove' | 'VoteReject') {
-    const r = await w.call(ENV.dao, { methodName: 'act_proposal', args: { id, action }, gas: '150000000000000', deposit: '0' });
+  async function vote(id: number, action: 'VoteApprove' | 'VoteReject', kind: unknown) {
+    // this Sputnik version requires the proposal kind to be echoed back in act_proposal
+    const r = await w.call(ENV.dao, { methodName: 'act_proposal', args: { id, action, proposal: kind }, gas: '150000000000000', deposit: '0' });
     setMsg((m) => ({ ...m, [id]: r.ok ? `${action} sent` : `error: ${r.error}` }));
     props.reload();
   }
@@ -66,10 +67,10 @@ export default function Votes() {
                     <td>
                       {p.status === 'InProgress' ? (
                         <div className="row">
-                          <button className="primary" disabled={!w.accountId} onClick={() => vote(p.id, 'VoteApprove')}>Approve</button>
-                          <button className="danger" disabled={!w.accountId} onClick={() => vote(p.id, 'VoteReject')}>Reject</button>
+                          <button className="primary" disabled={!w.accountId} onClick={() => vote(p.id, 'VoteApprove', p.kind)}>Approve</button>
+                          <button className="danger" disabled={!w.accountId} onClick={() => vote(p.id, 'VoteReject', p.kind)}>Reject</button>
                         </div>
-                      ) : '—'}
+                      ) : 'â€”'}
                       {msg[p.id] && <div className="mono">{msg[p.id]}</div>}
                     </td>
                   </tr>
@@ -83,7 +84,7 @@ export default function Votes() {
       <div className="card"><table><tbody>
         {Object.entries(TIER_RULES).map(([k, v]) => <tr key={k}><td>{k}</td><td>{v}</td></tr>)}
       </tbody></table>
-        <p style={{ color: 'var(--muted)', fontSize: 13 }}>Tiers are enforced by the mandate contract plus the worker reading proposal votes. The DAO’s own roles and thresholds are below.</p></div>
+        <p style={{ color: 'var(--muted)', fontSize: 13 }}>Tiers are enforced by the mandate contract plus the worker reading proposal votes. The DAOâ€™s own roles and thresholds are below.</p></div>
       <h2>Treasurer trust <Src s="chain" /></h2>
       <Treasurers />
       <h2>DAO roles and thresholds</h2>
@@ -99,3 +100,4 @@ export default function Votes() {
     </>
   );
 }
+
