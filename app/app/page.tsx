@@ -1,0 +1,56 @@
+'use client';
+import { ENV, getBalances, getDaoPolicy, withRecordedFallback } from '@/lib/data';
+import { PageHead, Src, Stat, useAsync, View } from '@/components/ui';
+import { MandateTable, loadMandates, TIER_RULES } from '@/components/mandates';
+import { BOUNDS, type Balances } from '@/lib/types';
+import { fmtUnits } from '@/lib/data';
+
+function Config() {
+  const rows: [string, string][] = [
+    ['Worker API', ENV.worker], ['DAO account', ENV.dao], ['Mandate contract', ENV.mandate], ['Agent wallet', ENV.agent],
+  ];
+  return (
+    <div className="card">
+      <table><tbody>
+        {rows.map(([k, v]) => (
+          <tr key={k}><td>{k}</td><td className="mono">{v || <span className="pill bad">not configured</span>}</td></tr>
+        ))}
+        <tr><td>Network</td><td><span className="pill">{ENV.network}</span></td></tr>
+      </tbody></table>
+    </div>
+  );
+}
+
+function BalancesCard({ b, s }: { b: Balances; s: 'api' | 'recorded' | 'chain' }) {
+  if (!b.length) return <div className="state">Wallet reports no balances.</div>;
+  return (
+    <div className="grid">
+      {b.map((x, i) => (
+        <Stat key={i} k={`${x.symbol} · ${x.where}`} v={fmtUnits(x.amount, BOUNDS.allowedTokens[x.token]?.decimals ?? 0)} s={s} />
+      ))}
+    </div>
+  );
+}
+
+export default function Page() {
+  const mandates = useAsync(loadMandates, []);
+  const policy = useAsync(getDaoPolicy, []);
+  const balances = useAsync(() => withRecordedFallback(getBalances(), (r) => r.balances), []);
+  return (
+    <>
+      <PageHead title="Treasury overview" lead="A DAO votes once on a plain-English mandate. A sealed-chip agent executes it in hidden chunks, stays inside the mandate, and posts a verifiable settlement report." />
+      <h2>Connection</h2>
+      <Config />
+      <h2>Agent balances</h2>
+      <View a={balances} what="balances">{(b, s) => <BalancesCard b={b} s={s} />}</View>
+      <h2>Mandates</h2>
+      <View a={mandates} what="mandates">{(list, s) => <MandateTable list={list} s={s} />}</View>
+      <h2>Approval tiers <span className="tag chain">design</span></h2>
+      <div className="card"><table><tbody>
+        {Object.entries(TIER_RULES).map(([k, v]) => <tr key={k}><td>{k}</td><td>{v}</td></tr>)}
+      </tbody></table></div>
+      <h2>DAO policy</h2>
+      <View a={policy} what="DAO policy">{(p, s) => <div className="card"><div>On-chain policy <Src s={s} /></div><pre>{JSON.stringify(p, null, 2)}</pre></div>}</View>
+    </>
+  );
+}
