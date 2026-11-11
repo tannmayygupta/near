@@ -1,4 +1,4 @@
-// END-TO-END on the LOCAL sandbox chain: real Sputnik DAO votes -> real mandate contract -> real worker (real OutLayerClient over HTTP)
+﻿// END-TO-END on the LOCAL sandbox chain: real Sputnik DAO votes -> real mandate contract -> real worker (real OutLayerClient over HTTP)
 // -> payouts -> settlement -> report anchored on chain; then a second mandate that the DAO cancels mid-run.
 // The OutLayer API here is the TEST-ONLY local stand-in (scripts/sandbox/fake-outlayer.ts). Nothing here proves live OutLayer behaviour.
 import { readFileSync } from 'node:fs';
@@ -16,7 +16,7 @@ import { createApi } from '../../worker/api';
 import { startFakeOutLayer } from './fake-outlayer';
 
 const cfg = JSON.parse(readFileSync('data/secret/sandbox-accounts.json', 'utf8'));
-const root = JSON.parse(readFileSync('data/secret/sandbox-root.json', 'utf8').replace(/^﻿/, ''));
+const root = JSON.parse(readFileSync('data/secret/sandbox-root.json', 'utf8').replace(/^ï»¿/, ''));
 const A = (n: string) => accountFor(RPC.sandbox, cfg.accounts[n].accountId, cfg.accounts[n].secretKey);
 const rootAcc = accountFor(RPC.sandbox, root.account_id, root.secret_key);
 const SELL = 'nep141:wrap.near', BUY = 'nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1';
@@ -107,7 +107,7 @@ const ok2 = await runUntil(() => state.runtime(1).phase === 'done', 60);
 check('worker stops within a tick and returns everything', ok2 && fake.swaps.length === swapsAtCancel, `swaps after cancel: ${fake.swaps.length - swapsAtCancel}`);
 const w2 = fake.withdrawals.slice(wBefore);
 check('cancel run paid nobody except the DAO (no payouts, no fee)', w2.length > 0 && w2.every((w) => w.to === cfg.dao), w2.map((w) => w.to).join(','));
-check('cancelled mandate leaves nothing stranded', (fake.conf[BUY] ?? 0n) === 0n && (fake.conf[SELL] ?? 0n) === 5n * 10n ** 24n, `sell=${fake.conf[SELL]} buy=${fake.conf[BUY]}`);
+check('cancelled mandate leaves nothing stranded', (fake.conf[BUY] ?? 0n) === 0n && (fake.conf[SELL] ?? 0n) === 0n, `sell=${fake.conf[SELL]} buy=${fake.conf[BUY]}`);
 void swapsBefore;
 
 fake.server.close();
@@ -116,3 +116,4 @@ console.log('\n=========== E2E RESULT ===========');
 for (const [n, ok] of results) console.log(ok ? ' PASS ' : ' FAIL ', n);
 console.log(`${results.length - failed.length}/${results.length} passed`);
 process.exit(failed.length ? 1 : 0);
+

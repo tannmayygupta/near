@@ -1,4 +1,4 @@
-// Read-only HTTP API for the dashboard (paths match app/lib/data.ts) + redteam POSTs + council-only sealed terms.
+﻿// Read-only HTTP API for the dashboard (paths match app/lib/data.ts) + redteam POSTs + council-only sealed terms.
 import { createServer, IncomingMessage, Server, ServerResponse } from 'node:http';
 import { BOUNDS, MandateTerms } from '../src/engine/schema';
 import { commit, hashJson } from '../src/engine/hash';
@@ -73,8 +73,6 @@ export function createApi(d: ApiDeps) {
 
   async function report(id: number) {
     const r = d.state.report(id); if (!r) return null;
-    const terms = MandateTerms.parse((await termsForId(id))!);
-    void terms;
     const returned = d.state.items(id).filter((i) => i.kind.startsWith('return') && i.status === 'success').reduce((s, i) => s + BigInt(i.amount), 0n).toString();
     return { mandateId: id, generatedAt: r.generatedAt, totalSold: r.totals.soldSell.value, totalBought: r.totals.proceedsBuy.value, avgPrice: r.totals.avgPrice.value?.toString() ?? null,
       benchmarkPrice: r.totals.benchmarkTwap.value?.toString() ?? null, benchmarkSource: r.benchmarkSamples[0]?.origin ?? 'none', slippageBps: null, feesPaid: r.totals.feePaid.value,
@@ -82,7 +80,6 @@ export function createApi(d: ApiDeps) {
       summarySignature: r.aiSummary ? { text: `${r.aiSummary.requestHash}:${r.aiSummary.responseHash}`, signature: r.aiSummary.signature ?? '', signingAddress: r.aiSummary.signer, signingAlgo: r.aiSummary.signingAlgo ?? 'ecdsa' } : null,
       reportHash: r.reportHash, anchored: !!r.anchored, floorRespected: r.floorRespected };
   }
-  const termsForId = async (id: number) => { const m = await d.chain.getMandate(id); const t = m ? await termsFor(d.state, m) : null; return t ? JSON.stringify(t) : null; };
 
   async function verify(id: number) {
     const checks: Array<{ name: string; ok: boolean; detail: string }> = [];
@@ -147,3 +144,4 @@ export function createApi(d: ApiDeps) {
   };
   return { handler, listen(port: number): Promise<Server> { const s = createServer(handler); return new Promise((r) => s.listen(port, () => r(s))); } };
 }
+
