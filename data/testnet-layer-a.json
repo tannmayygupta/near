@@ -1,0 +1,72 @@
+{
+  "network": "testnet",
+  "outlayerApi": "https://testnet-api.outlayer.ai",
+  "contract": "outlayer.testnet",
+  "owner": "qtagent-68669.testnet",
+  "allowedDestination": "qtcontrib-68669.testnet",
+  "wallet": {
+    "id": "7d368e57-9351-36de-cab1-14f47ee71ca0",
+    "address": "e016bb364245bb86db1a31b85bcc952056a54ff906fe79de9659589f49480887",
+    "explorer": "https://explorer.testnet.near.org/accounts/e016bb364245bb86db1a31b85bcc952056a54ff906fe79de9659589f49480887"
+  },
+  "policy": {
+    "rules": {
+      "transaction_types": [
+        "transfer"
+      ],
+      "allowed_tokens": [
+        "*"
+      ],
+      "addresses": {
+        "mode": "whitelist",
+        "list": [
+          "qtcontrib-68669.testnet"
+        ]
+      },
+      "limits": {
+        "per_transaction": {
+          "native": "100000000000000000000000"
+        }
+      },
+      "rate_limit": {
+        "max_per_hour": 20
+      }
+    },
+    "storeTx": "J7zALWkyygmBKQMtyEmTN9i7Ev2BDiHd5AwihosQer4a",
+    "explorer": "https://explorer.testnet.near.org/transactions/J7zALWkyygmBKQMtyEmTN9i7Ev2BDiHd5AwihosQer4a",
+    "note": "rules shown here are the plaintext we submitted; on-chain they are stored ENCRYPTED"
+  },
+  "probes": [
+    {
+      "name": "small transfer to the listed address (must be allowed)",
+      "to": "qtcontrib-68669.testnet",
+      "amount": "10000000000000000000000",
+      "expect": "allow",
+      "result": "allowed",
+      "status": "success",
+      "response": "{\"request_id\":\"865e00df-e751-4ab2-a29f-264f6569a8d3\",\"status\":\"success\",\"tx_hash\":\"8o377FgRcWGaZfj6AumSHsWJd36tHfpdG3DuvCXiPhq7\"}"
+    },
+    {
+      "name": "transfer to an UNLISTED address (must be denied)",
+      "to": "attacker-unlisted.testnet",
+      "amount": "10000000000000000000000",
+      "expect": "deny",
+      "result": "denied",
+      "blocked": true,
+      "status": 403,
+      "error": "POST /wallet/v1/transfer -> 403 {\"error\":\"policy_denied\",\"message\":\"Address 'attacker-unlisted.testnet' is not in whitelist\"}"
+    },
+    {
+      "name": "transfer above the 0.1 NEAR cap to the listed address (must be denied)",
+      "to": "qtcontrib-68669.testnet",
+      "amount": "500000000000000000000000",
+      "expect": "deny",
+      "result": "denied",
+      "blocked": true,
+      "status": 403,
+      "error": "POST /wallet/v1/transfer -> 403 {\"error\":\"policy_denied\",\"message\":\"Per-transaction limit exceeded for native: 500000000000000000000000 > 100000000000000000000000\"}"
+    }
+  ],
+  "allPassed": true,
+  "at": "2026-11-12T06:06:09.767Z"
+}

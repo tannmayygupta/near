@@ -1,4 +1,4 @@
-// REAL attacks. Each attempt is genuinely made against the executor guards (layer B), the mandate contract (layer B), or OutLayer (layer A).
+﻿// REAL attacks. Each attempt is genuinely made against the executor guards (layer B), the mandate contract (layer B), or OutLayer (layer A).
 // None of them can move money: wallet probes use dry-run endpoints only; contract attempts are expected to revert. If nothing blocks an attack we say blocked:false.
 import { MandateTerms } from '../src/engine/schema';
 import { OutLayerError } from '../src/near/outlayer';
@@ -12,8 +12,15 @@ export interface RedteamDeps {
   outlayer: OutLayerPort & { confidentialWithdrawDryRun?(b: { chain: string; to: string; amount: string; token: string }): Promise<unknown> };
   termsFor(m: OnChainMandate): Promise<MandateTerms | null>;
   nowS(): number;
+  /** Optional REAL OutLayer wallet-policy probe (Layer A). Testnet: native transfers through the same policy engine (confidential endpoints are mainnet-only). */
+  layerA?: LayerAProbe;
 }
-export const ATTACKS = ['over_budget', 'wrong_token', 'after_expiry', 'unlisted_payout', 'non_dao_create'] as const;
+export interface LayerAProbe {
+  transfer(b: { to: string; amount: string }): Promise<unknown>;
+  verdict(e: unknown): { blocked: boolean; status: number | null; error: string };
+  unlistedTo: string; allowedTo: string; smallAmount: string; overCapAmount: string;
+}
+export const ATTACKS = ['over_budget', 'wrong_token', 'after_expiry', 'unlisted_payout', 'non_dao_create', 'over_cap'] as const;
 export type Attack = (typeof ATTACKS)[number];
 
 const res = (attack: string, blocked: boolean, layer: string, error: string, status: number | null = null, requestId: string | null = null): RedteamResult => ({ attack, blocked, layer, status, error, requestId });
@@ -55,7 +62,16 @@ export async function runAttack(attack: string, mandateId: number | undefined, d
     try { assertExecutable(m, m.end_ns / 1e9 + 1); return res(attack, false, 'none', 'guard accepted execution after the window'); }
     catch (e) { return res(attack, true, 'B (executor guard)', `${msg(e)} [evaluated at end+1s: this mandate is still inside its window, so this is a counterfactual-time check]`); }
   }
+  if (attack === 'over_cap') { // Layer A only: a transfer above the wallet's per-transaction cap, to a LISTED address
+    if (!d.layerA) return res(attack, false, 'n/a', 'no OutLayer wallet policy probe configured (Layer A not available in this deployment)');
+    try { await d.layerA.transfer({ to: d.layerA.allowedTo, amount: d.layerA.overCapAmount }); return res(attack, false, 'none', 'over-cap transfer was ALLOWED by the wallet'); }
+    catch (e) { const v = d.layerA.verdict(e); return res(attack, v.blocked, v.blocked ? 'A (OutLayer wallet policy)' : 'none', v.error, v.status); }
+  }
   // unlisted_payout
+  if (d.layerA) { // REAL wallet-policy denial first (Layer A)
+    try { await d.layerA.transfer({ to: d.layerA.unlistedTo, amount: d.layerA.smallAmount }); return res(attack, false, 'none', 'transfer to an unlisted address was ALLOWED by the wallet'); }
+    catch (e) { const v = d.layerA.verdict(e); if (v.blocked) return res(attack, true, 'A (OutLayer wallet policy)', v.error, v.status); }
+  }
   const body = { chain: 'near', to: 'attacker-unlisted.near', amount: '1', token: terms.buyToken };
   if (d.outlayer.confidentialWithdrawDryRun) {
     try { await d.outlayer.confidentialWithdrawDryRun(body); }
@@ -64,3 +80,4 @@ export async function runAttack(attack: string, mandateId: number | undefined, d
   try { assertDestination(terms, body.chain, body.to); return res(attack, false, 'none', 'payout to an unlisted address passed the guard'); }
   catch (e) { return res(attack, true, 'B (executor guard)', `${msg(e)} | OutLayer dry-run did not refuse it (no wallet whitelist configured)`); }
 }
+
