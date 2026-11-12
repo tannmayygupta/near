@@ -52,6 +52,11 @@ EXEC_MODE=testnet-real ... npx tsx worker/index.ts    # worker API doing REAL te
 
 The recorded testnet run is in `data/demo-run/run.json` (also served by the dashboard from `app/public/demo-run/`) and is labelled **recorded** in the UI; the older simulated-fills run is kept as `run-simulated.json`. Recorded mainnet runs do not exist yet.
 
+## Sealed mandates (commit-reveal), proven end to end on public testnet
+A DAO can approve a mandate whose terms stay off the public chain until it settles: the proposal and contract hold only `terms_hash = sha256(salt | terms)` plus the budget; the worker keeps the terms AES-256-GCM encrypted and releases them only to council members who sign a NEP-413 request (unsigned, non-council, wrong-action and impersonation requests all get 401). After settlement `complete(revealed_terms)` publishes the terms and anyone can check them.
+- Run: `npx tsx --env-file=.env scripts/testnet/e2e-sealed.ts` (36/36 on mandate #12: real DAO vote, real funding Transfer, 5 real Ref swaps, real payouts, signed AI summary, reveal). Recorded in `data/demo-run/sealed-run.json`; verify with `npx tsx src/verify/cli.ts data/demo-run/sealed-proof-bundle.json` (21/21, including 5 tamper cases that must FAIL: changed floor, changed salt, swapped recipient, terms public early, leaked secret). Details and limits: `docs/SEALED.md`.
+- Honest limits: the worker is not in a TEE, so its operator can read sealed terms; on testnet the swaps and payouts are public and recipients become visible when payouts execute. Hidden (confidential) execution is mainnet-only and unproven.
+
 ## Trust assumptions (read these)
 - The worker is **not** in a TEE in v0: it sees the mandates it executes. Wallet keys are in OutLayer's TDX enclave; AI inference is in NEAR AI's TEE.
 - OutLayer's team currently holds governance/admin keys. Defuse/1Click solvers see swap details before execution. The private shard has no public RPC but its operator can read it.
