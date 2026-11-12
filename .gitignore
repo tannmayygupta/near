@@ -6,7 +6,9 @@ target/
 .env.*
 !.env.example
 data/secret/
-data/*.sqlite
+data/*.sqlite*
+data/tunnel.pids
+*.stackdump
 .claude/
 .agents/
 *.log
