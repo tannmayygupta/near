@@ -49,7 +49,11 @@ function ReportBody({ m, r, rs, s, sell, buy }: { m: OnchainMandate; r: Report; 
   const bench = r.benchmarkPrice !== null ? Number(r.benchmarkPrice) : null;
   // slippage may be missing in the stored report; derive it from the two prices shown (sell side: higher than benchmark is better)
   const bps = r.slippageBps ?? (avg !== null && bench ? Math.round(((avg - bench) / bench) * 10000) : null);
-  const bpsLabel = bps === null ? '-' : `${bps >= 0 ? '+' : ''}${bps} bps ${bps >= 0 ? 'better' : 'worse'} than benchmark`;
+  // A pool-spot benchmark is the pool price BEFORE we sold: any gap is price impact + the 0.3% fee, not "underperformance". The fair comparison is the one-shot baseline shown in the box below.
+  const bpsLabel = bps === null ? '-'
+    : String(r.benchmarkSource ?? '').includes('pool')
+      ? `${Math.abs(bps)} bps ${bps >= 0 ? 'above' : 'below'} the pool spot price before selling (price impact + 0.3% fee)`
+      : `${bps >= 0 ? '+' : ''}${bps} bps ${bps >= 0 ? 'better' : 'worse'} than benchmark`;
   const fs = factTag(rs); // sums of real on-chain swaps/payouts are chain facts when the committed run is a testnet-real run; the benchmark is an API quote
   return (
     <>
