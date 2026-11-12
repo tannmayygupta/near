@@ -83,7 +83,7 @@ NEAR's hackathon tracks name real capabilities. Here is what each one means and 
 **What the track is about:** markets that no single party controls.
 **The problem it solves for us:** treasury sales should not depend on a custodian or an operator's goodwill.
 **How it works in our scenario:** the DAO funds a vault by vote; the agent can only trade what the on-chain mandate allows, so no operator can redirect funds, and only a DAO vote can stop it. Execution on testnet is **real on-chain swaps on Ref Finance** with a price floor on every chunk. The cross-chain leg is implemented against NEAR Intents' 1Click API and **live dry-run quotes** are recorded for the sell leg and each payout chain.
-**Proof:** the swap transactions above, `src/near/intents.ts`, `docs/DEFI.md`.
+**Proof:** the swap transactions above; `src/near/routes.ts` and `src/near/intents.ts`; recorded live 1Click quotes in `data/demo-run/mainnet-readonly.json` (5 wNEAR to about 16.8 USDC on NEAR, then USDC legs to Solana, Base, Arbitrum and Ethereum, each with minimum out and time estimate); an `EXEC_MODE=live-dryrun` worker mode that takes a real quote, applies the price floor and records the exact OutLayer request it *would* send while blocking every money-moving call (`data/demo-run/mainnet-dryrun-decision.json`); the `/routes` dashboard page; [docs/DEFI.md](docs/DEFI.md).
 **Honest limit:** Intents has no testnet and we did not fund mainnet, so Intents execution, OutLayer-custody swaps and confidential swaps are **not proven with real money**. On the thin testnet pool, chunked selling does not beat one swap (about the 0.3% fee), and the report says so.
 
 ---
