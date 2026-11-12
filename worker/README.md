@@ -35,3 +35,19 @@ Tests: `npx vitest run tests/worker` (28). End to end on the local sandbox: `npx
 - `terms_hash` convention: plain = `sha256(canonical JSON of parsed terms)` (`hashJson`); sealed = `sha256(salt|canonical terms)` (`commit`). The wizard in `app/` must produce the same hashes (not checked here).
 - OutLayer policy updates per mandate (gate G13) are not attempted; Layer B enforces destinations. Withdraw dry-run before real withdraws is not performed (saves custody-op budget).
 - NEAR AI summaries and the live benchmark are wired in `index.ts` but untested live (no API key in this environment).
+
+
+## Execution modes (`EXEC_MODE`)
+| Mode | What moves | Custody | Status |
+|---|---|---|---|
+| `live` (default) | Intents confidential swaps/withdraws through the OutLayer wallet API (mainnet) | OutLayer TEE wallet + wallet policy | **UNPROVEN with real money** (money-moving calls never run live) |
+| `testnet-real` | **REAL on-chain testnet transactions**: wNEAR wrap -> Ref Finance swap (wNEAR -> USDT.e) -> real USDT.e payouts / fee -> real native-NEAR leftover return, all to named testnet accounts and the DAO | a vault key held by the worker (the `vault.<agent>` testnet account) | **VERIFIED on public testnet** (`scripts/testnet/e2e-real.ts`) |
+| `simulated` | nothing (fills priced from read-only 1Click quotes, ids `sim-*`, source tag `simulated`) | none | older recorded run, kept in `data/demo-run/run-simulated.json` |
+
+### `testnet-real` details (`worker/adapters/ref-testnet.ts`)
+- Env: `EXEC_MODE=testnet-real NEAR_NETWORK=testnet VAULT_ACCOUNT_ID VAULT_SECRET_KEY [VAULT_RESERVE_YOCTO] [REF_LEDGER] SIM_QUOTE_RECIPIENT` (the last one only feeds a read-only mainnet price quote used to reject absurd test pools). Token profile is selected by `NEAR_NETWORK=testnet` / `TOKEN_PROFILE=testnet` (wNEAR, USDT.e).
+- Budget = native NEAR the vault holds above its gas float (plus wNEAR). The adapter adds back the gas/registration costs it paid itself, so **only DAO-funded NEAR counts as budget**; the DAO funds it with a real Sputnik `Transfer` proposal (native NEAR) and the worker waits for it (`awaiting_funds`).
+- Pool choice: scans Ref pools for the pair, drops pools that are too thin or priced outside 0.2x-5x of a mainnet reference quote, then takes the best `get_return`. The price floor from the mandate is passed as `min_amount_out` and re-checked from a fresh quote before any money moves.
+- Idempotency: a persisted ledger (`REF_LEDGER`, key = `mandate:chunk:attempt`) records each stage (wrapped -> swapped -> done); a crash or retry resumes at the stage instead of repeating a transfer. Receipts carry the real transaction hash as `request_id` (source tag `chain`).
+- Honest limits: custody is a held key, not the OutLayer TEE; there is no confidentiality on testnet; Ref testnet pools are thin and have no arbitrageurs, so chunking does **not** beat a one-shot swap in a constant-product pool. The report therefore states what ONE swap of the same total would have returned (pool snapshot taken before the first chunk) instead of claiming a price gain.
+- Dev run: `scripts/dev/start-testnet.ps1` (adapt env) or `npx tsx --env-file=.env scripts/testnet/e2e-real.ts` for the full recorded flow.

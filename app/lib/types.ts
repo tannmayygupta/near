@@ -12,9 +12,15 @@ export const BOUNDS = {
   maxChunks: 500,
   maxFeeBps: 500,
   maxPayouts: 25,
+  // mainnet = Intents asset ids. On a testnet deployment the testnet-real run (wNEAR / USDT.e on Ref Finance) must also be displayable,
+  // and the older simulated run uses the mainnet ids, so testnet mode shows both. Mirrors src/engine/schema.ts MAINNET_TOKENS / TESTNET_TOKENS.
   allowedTokens: {
     'nep141:wrap.near': { symbol: 'wNEAR', decimals: 24 },
     'nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1': { symbol: 'USDC', decimals: 6 },
+    ...(process.env.NEXT_PUBLIC_NEAR_NETWORK === 'testnet' ? {
+      'nep141:wrap.testnet': { symbol: 'wNEAR', decimals: 24 },
+      'nep141:usdt.fakes.testnet': { symbol: 'USDT.e', decimals: 6 },
+    } : {}),
   } as Record<string, { symbol: string; decimals: number }>,
 };
 

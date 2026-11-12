@@ -382,7 +382,7 @@ export class Executor {
 }
 
 /** Receipts produced by the testnet simulated adapter carry request ids prefixed sim-; they must never be presented as real fills. */
-const srcOf = (requestId: string | null | undefined): 'api' | 'simulated' | 'chain' => {
+export const srcOf = (requestId: string | null | undefined): 'api' | 'simulated' | 'chain' => {
   const r = String(requestId ?? '');
   if (r.startsWith('sim-')) return 'simulated';
   return /^[1-9A-HJ-NP-Za-km-z]{42,45}$/.test(r) ? 'chain' : 'api'; // a NEAR transaction hash = read straight from the chain (testnet-real adapter)

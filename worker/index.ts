@@ -4,12 +4,13 @@
 import { RPC, accountFor, Net } from '../src/near/chain';
 import { OutLayerClient, OUTLAYER_MAINNET } from '../src/near/outlayer';
 import { SimulatedOutLayer } from './adapters/simulated-outlayer';
+import { RefTestnetAdapter } from './adapters/ref-testnet';
 import { createSummarizer } from './summarizer';
 import { OutLayerWallet, layerAVerdict } from '../src/near/outlayer-policy';
 import { NearAiClient } from '../src/near/ai';
 import { llmFromClient, parseIntent } from '../src/engine/parser';
 import { dryQuote, quoteToSample } from '../src/near/intents';
-import { BOUNDS } from '../src/engine/schema';
+import { BOUNDS, MAINNET_TOKENS } from '../src/engine/schema';
 import { Executor, defaultConfig } from './executor';
 import { RealChain } from './chain';
 import { State, loadKey } from './state';
@@ -26,7 +27,13 @@ const dao = need('DAO_ACCOUNT'), mandateContract = need('MANDATE_CONTRACT');
 const agent = accountFor(rpc, need('AGENT_ACCOUNT_ID'), need('AGENT_SECRET_KEY'));
 // EXEC_MODE: 'live' (default; the real OutLayer client, UNPROVEN with real money) | 'simulated' (testnet adapter; fills are priced from real 1Click dry quotes and are NOT trades)
 const execMode = process.env.EXEC_MODE ?? 'live';
-const outlayer: OutLayerPort = execMode === 'simulated'
+// 'testnet-real': REAL on-chain testnet execution through Ref Finance (swap, payout, return are real txs; custody = a vault key held by the worker; see worker/adapters/ref-testnet.ts)
+const ref = execMode === 'testnet-real' ? new RefTestnetAdapter({
+  vault: accountFor(rpc, need('VAULT_ACCOUNT_ID'), need('VAULT_SECRET_KEY')), rpc,
+  reserveYocto: BigInt(process.env.VAULT_RESERVE_YOCTO ?? '2000000000000000000000000'), ledgerPath: process.env.REF_LEDGER ?? 'data/ref-ledger.json', log: (k, f) => console.log(JSON.stringify({ t: new Date().toISOString(), kind: `ref_${k}`, ...f })),
+  refPrice: async () => { try { const [w, u] = Object.keys(MAINNET_TOKENS); const q = await dryQuote({ originAsset: w, destinationAsset: u, amount: (10n ** 23n).toString(), recipient: need('SIM_QUOTE_RECIPIENT'), refundTo: need('SIM_QUOTE_RECIPIENT') }); return (Number(BigInt(q.amountOut)) / 1e6) / 0.1; } catch { return null; } },
+}) : null;
+const outlayer: OutLayerPort = ref ? ref : execMode === 'simulated'
   ? new SimulatedOutLayer({ recipient: need('SIM_QUOTE_RECIPIENT') })
   : new OutLayerClient({ baseUrl: process.env.OUTLAYER_BASE_URL ?? OUTLAYER_MAINNET, apiKey: need('OUTLAYER_WK') });
 if (execMode === 'simulated') console.warn(JSON.stringify({ level: 'warn', msg: 'EXEC_MODE=simulated: fills are SIMULATED and tagged so; this is not real trading' }));
@@ -39,7 +46,9 @@ const ai = process.env.NEAR_AI_API_KEY ? new NearAiClient() : null;
 
 const exec = new Executor({
   outlayer, chain, state, clock, log, summarize: ai ? createSummarizer(ai) : undefined,
-  benchmark: async (terms, nowS) => quoteToSample(await dryQuote({
+  poolSnapshot: ref ? async (terms) => { const s = await ref.poolSnapshot(terms.sellToken, terms.buyToken, BigInt(terms.chunkMax)); return s ? { poolId: s.poolId, reserveIn: s.reserveIn, reserveOut: s.reserveOut, feeBps: s.feeBps, ts: s.ts } : null; } : undefined,
+  benchmark: ref ? (terms) => ref.spotSample(terms.sellToken, terms.buyToken, BOUNDS.allowedTokens[terms.sellToken].decimals, BOUNDS.allowedTokens[terms.buyToken].decimals)
+    : async (terms, nowS) => quoteToSample(await dryQuote({
     originAsset: terms.sellToken, destinationAsset: terms.buyToken,
     amount: (10n ** BigInt(BOUNDS.allowedTokens[terms.sellToken].decimals - 1)).toString(), // 0.1 sell-token reference quote
     recipient: terms.returnTo, refundTo: terms.returnTo, nowS: () => nowS,

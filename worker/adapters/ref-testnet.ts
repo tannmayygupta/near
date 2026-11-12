@@ -76,7 +76,13 @@ export class RefTestnetAdapter implements OutLayerPort {
     return t;
   }
   /** NEAR the vault holds that is DAO-funded budget (not the gas float): native - reserve + everything the vault itself spent on gas/registrations. */
-  private async freeNative(): Promise<bigint> { const nat = await this.nativeBalance(); const f = nat + this.spent; return f > this.o.reserveYocto ? f - this.o.reserveYocto : 0n; }
+  private async freeNative(): Promise<bigint> {
+    const nat = await this.nativeBalance(); const f = nat + this.spent;
+    if (f <= this.o.reserveYocto) return 0n;
+    // gas accounting is exact to ~10 yocto but not to the yocto (observed: a 0.3 NEAR funding read 11 yocto short); forgive up to 1e15 yocto (0.001 NEAR) once anything has been funded
+    const free = f - this.o.reserveYocto;
+    return free > 1_000_000_000_000n ? free + 1_000_000_000_000_000n : free;
+  }
   /** cost = part of deposit that is a real expense (storage registration), not budget moving around. */
   private async call(contract: string, method: string, args: object, gas: bigint, deposit = 0n, cost = 0n) {
     const o: any = await this.o.vault.callFunctionRaw({ contractId: contract, methodName: method, args, gas, deposit });
@@ -123,9 +129,12 @@ export class RefTestnetAdapter implements OutLayerPort {
 
   /** Best sane pool for this trade. Sanity band is applied to wNEAR->stable pairs only (needs a mainnet reference price). */
   async bestPool(tokenIn: string, tokenOut: string, amountIn: bigint): Promise<{ id: number; out: bigint; feeBps: number }> {
+    // prefilter on the cached scan (cheap), then re-read only the few deepest pools: reserves change, so the decision uses fresh state
+    const pre = (await this.candidates(tokenIn, tokenOut)).filter((c) => this.reserves(c, tokenIn).rIn >= amountIn * 3n)
+      .sort((x, y) => (this.reserves(y, tokenIn).rIn > this.reserves(x, tokenIn).rIn ? 1 : -1)).slice(0, 6);
     const fresh: Candidate[] = [];
-    for (const c of await this.candidates(tokenIn, tokenOut)) {
-      const g = await view<any>(this.o.rpc, this.dex, 'get_pool', { pool_id: c.id }).catch(() => null); // reserves change: re-read
+    for (const c of pre) {
+      const g = await view<any>(this.o.rpc, this.dex, 'get_pool', { pool_id: c.id }).catch(() => null);
       if (g) fresh.push({ ...c, amounts: g.amounts, fee: g.total_fee });
     }
     const ref = tokenIn === WRAP && this.o.refPrice ? await this.o.refPrice().catch(() => null) : null;
