@@ -41,3 +41,10 @@ export const edgeBps = (ours: number | null, bench: number | null): number | nul
 export const slippageBps = (quotedOut: bigint, actualOut: bigint): number =>
   quotedOut === 0n ? 0 : Number(((quotedOut - actualOut) * 10000n) / quotedOut);
 
+
+/** Constant-product output exactly as a Ref SIMPLE_POOL computes it (fee in bps of 10_000). Pure: used for the one-shot baseline from a stored pool snapshot. */
+export function cpmmOut(reserveIn: bigint, reserveOut: bigint, amountIn: bigint, feeBps: number): bigint {
+  if (reserveIn <= 0n || reserveOut <= 0n || amountIn <= 0n) return 0n;
+  const inWithFee = amountIn * BigInt(10_000 - feeBps);
+  return (inWithFee * reserveOut) / (reserveIn * 10_000n + inWithFee);
+}

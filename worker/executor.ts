@@ -3,8 +3,8 @@
 import { BOUNDS, MandateTerms } from '../src/engine/schema';
 import { canonicalJson, commit, hashJson } from '../src/engine/hash';
 import { Rng, cryptoRng, minAmountOut, planNextChunk } from '../src/engine/planner';
-import { Fill, PriceSample } from '../src/engine/benchmark';
-import { PayoutResult, Report, buildReport, Leftover } from '../src/engine/settlement';
+import { Fill, PriceSample, cpmmOut } from '../src/engine/benchmark';
+import { PayoutResult, Report, buildReport, Leftover, OneShot } from '../src/engine/settlement';
 import { OutLayerError } from '../src/near/outlayer';
 import type { OnChainMandate } from '../src/near/mandate';
 import { State, SettlementItem, ChunkRow } from './state';
@@ -25,8 +25,11 @@ export const defaultConfig = (dao: string): ExecutorConfig => ({
   dao, maxChunkAttempts: 4, maxItemAttempts: 4, itemBackoffS: 30, floorRetryS: 20, endMarginS: 15, requestWaitMs: 60_000, tier: { smallMinTrust: 0 },
 });
 
+export interface PoolSnap { poolId: number; reserveIn: string; reserveOut: string; feeBps: number; ts: number }
 export interface Deps {
   outlayer: OutLayerPort; chain: ChainPort; state: State; clock: Clock; rng?: Rng; benchmark?: Benchmark; summarize?: Summarizer; log?: Logger;
+  /** testnet-real only: pool state read from chain before the first chunk, so the report can state what ONE swap of the same total would have returned */
+  poolSnapshot?: (terms: MandateTerms) => Promise<PoolSnap | null>;
 }
 
 const big = (s: string | undefined | null) => BigInt(s ?? '0');
@@ -159,6 +162,10 @@ export class Executor {
     catch (e) { st.addViolation(m.id, (e as GuardError).code ?? 'guard', (e as Error).message); this.ev(m.id, 'guard_blocked', { message: (e as Error).message }); return; }
 
     await this.sample(m.id, terms);
+    if (idx === 0 && this.d.poolSnapshot && !this.baseline(m.id)) {
+      try { const snap = await this.d.poolSnapshot(terms); if (snap) this.ev(m.id, 'oneshot_baseline', snap); }
+      catch (e) { this.ev(m.id, 'baseline_error', { message: (e as Error).message.slice(0, 120) }); }
+    }
     const minOut = this.minOut(terms, plan.size);
     let q;
     try { q = await this.d.outlayer.confidentialSwapQuote({ token_in: terms.sellToken, token_out: terms.buyToken, amount_in: plan.size.toString() }); }
@@ -176,6 +183,11 @@ export class Executor {
     st.setRuntime(m.id, { next_at: 0 });
     c = row;
     return this.submitAndSettleChunk(m, terms, c, remaining);
+  }
+
+  private baseline(id: number): PoolSnap | null {
+    const e = this.d.state.events(id).find((x) => x.kind === 'oneshot_baseline');
+    return e ? (JSON.parse(e.detail) as PoolSnap) : null;
   }
 
   private minOut(terms: MandateTerms, size: bigint) {
@@ -351,8 +363,17 @@ export class Executor {
     const leftovers: Leftover[] = items.filter((i) => i.kind.startsWith('return')).map((i) => ({ token: i.token, amount: i.amount, returnedTo: i.address, txRef: i.request_id ?? undefined, source: srcOf(i.request_id) }));
     const fee = items.find((i) => i.kind === 'fee');
     const samples: PriceSample[] = st.samples(m.id).map((s) => ({ ts: s.ts, price: s.price, origin: s.origin, source: s.source }));
-    const input = { mandateId: m.id, terms, fills: this.fills(m.id), samples, payouts, feeAmount: fee && fee.status === 'success' ? fee.amount : '0', feeSource: 'api' as const,
-      leftovers, violations: st.violations(m.id), generatedAt: new Date(this.d.clock.nowS() * 1000).toISOString() };
+    const fills = this.fills(m.id);
+    let oneShot: OneShot | undefined;
+    const base = this.baseline(m.id);
+    if (base && fills.length) { // what one swap of the same total would have returned from the pool state recorded before our first chunk
+      const soldTotal = fills.reduce((s, f) => s + big(f.amountIn), 0n), got = fills.reduce((s, f) => s + big(f.amountOut), 0n);
+      const one = cpmmOut(big(base.reserveIn), big(base.reserveOut), soldTotal, base.feeBps);
+      oneShot = { amountOut: one.toString(), poolId: base.poolId, reserveIn: base.reserveIn, reserveOut: base.reserveOut, feeBps: base.feeBps, snapshotTs: base.ts,
+        chunkedVsOneShotBps: one === 0n ? null : Number(((got - one) * 10_000n) / one), source: 'chain' };
+    }
+    const input = { mandateId: m.id, terms, fills, samples, payouts, feeAmount: fee && fee.status === 'success' ? fee.amount : '0', feeSource: fee ? srcOf(fee.request_id) : ('api' as const),
+      leftovers, violations: st.violations(m.id), generatedAt: new Date(this.d.clock.nowS() * 1000).toISOString(), oneShot };
     let aiSummary; try { aiSummary = this.d.summarize ? await this.d.summarize(buildReport(input)) : undefined; } catch (e) { this.ev(m.id, 'summary_error', { message: (e as Error).message.slice(0, 120) }); }
     const report = buildReport({ ...input, aiSummary });
     st.saveReport(m.id, { ...report, anchored });
@@ -361,7 +382,11 @@ export class Executor {
 }
 
 /** Receipts produced by the testnet simulated adapter carry request ids prefixed sim-; they must never be presented as real fills. */
-const srcOf = (requestId: string | null | undefined): 'api' | 'simulated' => (String(requestId ?? '').startsWith('sim-') ? 'simulated' : 'api');
+const srcOf = (requestId: string | null | undefined): 'api' | 'simulated' | 'chain' => {
+  const r = String(requestId ?? '');
+  if (r.startsWith('sim-')) return 'simulated';
+  return /^[1-9A-HJ-NP-Za-km-z]{42,45}$/.test(r) ? 'chain' : 'api'; // a NEAR transaction hash = read straight from the chain (testnet-real adapter)
+};
 
 function firstTx(result: Record<string, any> | undefined): string | null {
   const h = result?.swap_details?.destinationChainTxHashes;

@@ -5,6 +5,21 @@ export const CHAINS = ['near', 'solana', 'base', 'arbitrum', 'ethereum'] as cons
 export const TIERS = ['small', 'mid', 'large'] as const;
 export const STATUSES = ['Approved', 'Funded', 'Executing', 'Settling', 'Completed', 'Cancelled', 'Expired'] as const;
 
+type TokenMap = Record<string, { symbol: string; decimals: number }>;
+/** MAINNET: defuse asset ids traded through NEAR Intents (OutLayer wallet). */
+export const MAINNET_TOKENS: TokenMap = {
+  'nep141:wrap.near': { symbol: 'wNEAR', decimals: 24 },
+  'nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1': { symbol: 'USDC', decimals: 6 },
+};
+/** TESTNET: real NEP-141 tokens traded on the Ref Finance testnet DEX (worker/adapters/ref-testnet.ts). USDT.e is a testnet "fakes" token. */
+export const TESTNET_TOKENS: TokenMap = {
+  'nep141:wrap.testnet': { symbol: 'wNEAR', decimals: 24 },
+  'nep141:usdt.fakes.testnet': { symbol: 'USDT.e', decimals: 6 },
+};
+/** Token profile: TOKEN_PROFILE=testnet|mainnet, else follows NEAR_NETWORK (testnet -> testnet), default mainnet. Read lazily so tests/scripts can switch. */
+export const tokenProfile = (): 'testnet' | 'mainnet' =>
+  (process.env.TOKEN_PROFILE ?? (process.env.NEAR_NETWORK === 'testnet' ? 'testnet' : 'mainnet')) === 'testnet' ? 'testnet' : 'mainnet';
+
 /** Hard bounds. The AI parser can only PROPOSE values inside these; the contract and worker re-check. */
 export const BOUNDS = {
   maxDurationS: 14 * 24 * 3600,
@@ -12,11 +27,8 @@ export const BOUNDS = {
   maxChunks: 500,
   maxFeeBps: 500,
   maxPayouts: 25,
-  // defuse asset ids the demo is allowed to sell / buy (extend deliberately)
-  allowedTokens: {
-    'nep141:wrap.near': { symbol: 'wNEAR', decimals: 24 },
-    'nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1': { symbol: 'USDC', decimals: 6 },
-  } as Record<string, { symbol: string; decimals: number }>,
+  // asset ids the demo is allowed to sell / buy (extend deliberately); depends on the token profile
+  get allowedTokens(): TokenMap { return tokenProfile() === 'testnet' ? TESTNET_TOKENS : MAINNET_TOKENS; },
 };
 
 const uint = z.string().regex(/^\d+$/, 'integer string in smallest units');

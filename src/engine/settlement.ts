@@ -19,6 +19,14 @@ export interface ReportInput {
   violations: Violation[];
   generatedAt: string; // ISO; passed in so the report is reproducible
   aiSummary?: { text: string; chatId: string; requestHash: string; responseHash: string; signer: string };
+  /** What ONE swap of the same total would have returned from the same pool state recorded before our first chunk (constant-product math from a stored on-chain snapshot). */
+  oneShot?: OneShot;
+}
+export interface OneShot {
+  amountOut: string; // buy-token smallest units
+  poolId: number; reserveIn: string; reserveOut: string; feeBps: number; snapshotTs: number;
+  chunkedVsOneShotBps: number | null; // positive = chunked got MORE than one-shot; negative = less (a constant-product AMM is path independent, so ~ -fee is expected)
+  source: Source;
 }
 
 export interface Report {
@@ -44,6 +52,7 @@ export interface Report {
   violations: Violation[];
   benchmarkSamples: PriceSample[];
   aiSummary?: ReportInput['aiSummary'];
+  oneShot?: OneShot;
   reportHash: string; // hash of everything above (this field excluded)
 }
 
@@ -83,6 +92,7 @@ export function buildReport(inp: ReportInput): Report {
     violations: inp.violations,
     benchmarkSamples: inp.samples,
     aiSummary: inp.aiSummary,
+    oneShot: inp.oneShot,
   };
   return { ...body, reportHash: hashJson(body) };
 }
