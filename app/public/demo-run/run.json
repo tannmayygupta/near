@@ -1,8 +1,8 @@
 {
-  "recordedAt": "2026-11-12T06:31:01.065Z",
-  "note": "RECORDED RUN on PUBLIC NEAR TESTNET. REAL: NEAR AI TEE parsing + signed completions + attestation, Sputnik DAO proposals/votes, mandate contract state and report anchoring, OutLayer testnet wallet policy (Layer A) denials, 1Click read-only dry quotes. SIMULATED (source \"simulated\", request ids sim-*): swap fills, payouts and leftover sweeps. They are NOT real trades (NEAR Intents exists only on mainnet).",
+  "recordedAt": "2026-11-12T08:53:10.232Z",
+  "note": "RECORDED RUN on PUBLIC NEAR TESTNET WITH REAL MONEY MOVEMENT. REAL: NEAR AI TEE parsing + signed completions + attestation; Sputnik DAO proposals/votes including a real native-NEAR Transfer proposal that funds the vault; mandate contract state and report anchoring; REAL Ref Finance swaps (wNEAR -> USDT.e); REAL USDT.e payouts and fee to named testnet accounts; REAL leftover returns to the DAO; OutLayer testnet wallet policy (Layer A) denials. NOT PROVEN (mainnet-only): OutLayer TEE custody swaps, confidential swaps, Intents cross-chain payouts. Custody on this path is a worker-held vault key. Testnet token values are worthless play money; Ref testnet pools are thin and have no arbitrageurs.",
   "network": "testnet",
-  "mode": "simulated fills",
+  "mode": "testnet-real",
   "ids": {
     "network": "testnet",
     "rpc": "https://test.rpc.fastnear.com",
@@ -22,16 +22,18 @@
       "mandate": "https://explorer.testnet.near.org/accounts/qtmandate-83872.testnet",
       "agent": "https://explorer.testnet.near.org/accounts/qtagent-68669.testnet"
     },
-    "note": "Public testnet ids only. Demo council members are accounts controlled by the authors (not real people)."
+    "note": "Public testnet ids only. Demo council members are accounts controlled by the authors (not real people).",
+    "vault": "vault.qtagent-68669.testnet",
+    "dex": "ref-finance-101.testnet"
   },
-  "intent": "Sell up to 6 NEAR for USDC over the next 5 minutes, never below 1 USDC per NEAR, in chunks of 1 to 2 NEAR every 5 to 8 seconds. Pay 60% of the proceeds to alice on Solana address 9xQeWvG816bUx9EPjHmaT23yvVM2ZWbrrpZb9PusVFin and 30% to bob on Base address 0x1111111111111111111111111111111111111111. Take a 0.5% service fee paid to qtcontrib-68669.testnet.",
+  "intent": "Sell up to 0.4 NEAR for USDT.e over the next 8 minutes, never below 2 USDT.e per NEAR, in chunks of 0.05 to 0.1 NEAR every 5 to 8 seconds. Pay 50% of the proceeds to alice at qtcontrib-68669.testnet and 20% to bob at qttreasurer-83872.testnet, both on near. Take a 0.5% service fee paid to qtfund-83872.testnet.",
   "parse": {
     "summary": [
-      "Sell up to 6.000000 wNEAR for USDC, never below 1 USDC per wNEAR.",
-      "Window: 2026-11-12T06:27:45.000Z -> 2026-11-12T06:32:45.000Z.",
-      "Chunks of 1.000000-2.000000 wNEAR every 5-8s (randomised).",
-      "Pay alice: 60% of net proceeds on solana to 9xQeWvG816bUx9EPjHmaT23yvVM2ZWbrrpZb9PusVFin.",
-      "Pay bob: 30% of net proceeds on base to 0x1111111111111111111111111111111111111111.",
+      "Sell up to 0.400000 wNEAR for USDT.e, never below 2 USDT.e per wNEAR.",
+      "Window: 2026-11-12T08:44:48.000Z -> 2026-11-12T08:52:48.000Z.",
+      "Chunks of 0.050000-0.100000 wNEAR every 5-8s (randomised).",
+      "Pay alice: 50% of net proceeds on near to qtcontrib-68669.testnet.",
+      "Pay bob: 20% of net proceeds on near to qttreasurer-83872.testnet.",
       "Leftovers return to quietdao-83872.sputnikv2.testnet. Fee 50 bps."
     ],
     "attempts": 1,
@@ -40,210 +42,231 @@
     "model": "z-ai/glm-5.3-flash"
   },
   "mandate": {
-    "id": 5,
+    "id": 9,
     "treasurer": "qttreasurer-83872.testnet",
-    "terms_hash": "12b062cf20186e6bd43b79a5ccf07f3d2cf69b64d9707f5365db6aa46e90b6d1",
-    "terms_json": "{\"dao\":\"quietdao-83872.sputnikv2.testnet\",\"treasurer\":\"qttreasurer-83872.testnet\",\"sellToken\":\"nep141:wrap.near\",\"buyToken\":\"nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1\",\"maxSellAmount\":\"6000000000000000000000000\",\"minPrice\":\"1\",\"startTs\":1794464865,\"endTs\":1794465165,\"chunkMin\":\"1000000000000000000000000\",\"chunkMax\":\"2000000000000000000000000\",\"intervalMinS\":5,\"intervalMaxS\":8,\"payouts\":[{\"label\":\"alice\",\"chain\":\"solana\",\"address\":\"9xQeWvG816bUx9EPjHmaT23yvVM2ZWbrrpZb9PusVFin\",\"token\":\"nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1\",\"percent\":60},{\"label\":\"bob\",\"chain\":\"base\",\"address\":\"0x1111111111111111111111111111111111111111\",\"token\":\"nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1\",\"percent\":30}],\"feeBps\":50,\"feeRecipient\":\"qtcontrib-68669.testnet\",\"returnTo\":\"quietdao-83872.sputnikv2.testnet\",\"sealed\":false,\"notes\":\"User said NEAR; mapped to allowed symbol wNEAR. 5-minute window expressed as durationHours. Remaining ~9.5% of proceeds unallocated per user instruction.\"}",
-    "sell_token": "nep141:wrap.near",
-    "max_sell": "6000000000000000000000000",
-    "start_ns": 1794464865000000000,
-    "end_ns": 1794465165000000000,
+    "terms_hash": "6b30a3e81301ea89b17701ec1edc61c2b009ddf56bf4c76cf74489732687aa4c",
+    "terms_json": "{\"dao\":\"quietdao-83872.sputnikv2.testnet\",\"treasurer\":\"qttreasurer-83872.testnet\",\"sellToken\":\"nep141:wrap.testnet\",\"buyToken\":\"nep141:usdt.fakes.testnet\",\"maxSellAmount\":\"400000000000000000000000\",\"minPrice\":\"2\",\"startTs\":1794473088,\"endTs\":1794473568,\"chunkMin\":\"50000000000000000000000\",\"chunkMax\":\"100000000000000000000000\",\"intervalMinS\":5,\"intervalMaxS\":8,\"payouts\":[{\"label\":\"alice\",\"chain\":\"near\",\"address\":\"qtcontrib-68669.testnet\",\"token\":\"nep141:usdt.fakes.testnet\",\"percent\":50},{\"label\":\"bob\",\"chain\":\"near\",\"address\":\"qttreasurer-83872.testnet\",\"token\":\"nep141:usdt.fakes.testnet\",\"percent\":20}],\"feeBps\":50,\"feeRecipient\":\"qtfund-83872.testnet\",\"returnTo\":\"quietdao-83872.sputnikv2.testnet\",\"sealed\":false,\"notes\":\"NEAR sold via wNEAR; price floor 2 USDT.e per NEAR; remaining 30% of proceeds retained by treasury.\"}",
+    "sell_token": "nep141:wrap.testnet",
+    "max_sell": "400000000000000000000000",
+    "start_ns": 1794473088000000000,
+    "end_ns": 1794473568000000000,
     "tier": "small",
     "status": "Completed",
-    "sold": "6000000000000000000000000",
-    "chunks": 4,
-    "created_ns": 1794464916003017200,
-    "report_hash": "f8246867e412e3b1c26181acfab96b014b973bea220e95165416eceec2a69981",
+    "sold": "400000000000000000000000",
+    "chunks": 5,
+    "created_ns": 1794473149265262300,
+    "report_hash": "1dadb344731912ac905102c418e707ba451e55c6efec6d1bd3bbfcd20f445ca8",
     "revealed_terms": null
   },
   "chunks": [
     {
       "index": 0,
-      "ts": "2026-11-12T06:28:45.000Z",
-      "sellAmount": "1267123222351074218750000",
-      "buyAmount": "4454959",
-      "price": "3.5158056623207323",
-      "benchmarkPrice": "3.4751900000000004",
+      "ts": "2026-11-12T08:46:16.000Z",
+      "sellAmount": "54805135726928710937500",
+      "buyAmount": "246041",
+      "price": "4.489378536090493",
+      "benchmarkPrice": "4.620933723610517",
       "status": "success",
-      "requestId": "sim-1",
-      "intentHash": "sim-ih-sim-1"
+      "requestId": "EL2WhifXaNvx71FPyUTuNJX4XajThDnTww3wSBQixsq9",
+      "intentHash": "EL2WhifXaNvx71FPyUTuNJX4XajThDnTww3wSBQixsq9"
     },
     {
       "index": 1,
-      "ts": "2026-11-12T06:28:58.000Z",
-      "sellAmount": "1820835113525390625000000",
-      "buyAmount": "6403931",
-      "price": "3.5170296049492893",
-      "benchmarkPrice": "3.47223",
+      "ts": "2026-11-12T08:46:50.000Z",
+      "sellAmount": "79111766815185546875000",
+      "buyAmount": "333759",
+      "price": "4.2188287967288165",
+      "benchmarkPrice": "4.387539994769119",
       "status": "success",
-      "requestId": "sim-2",
-      "intentHash": "sim-ih-sim-2"
+      "requestId": "2zbzaYSyum5YA7zkbhKwWzkhntnKUaRxUGHvt3xaZjWC",
+      "intentHash": "2zbzaYSyum5YA7zkbhKwWzkhntnKUaRxUGHvt3xaZjWC"
     },
     {
       "index": 2,
-      "ts": "2026-11-12T06:29:11.000Z",
-      "sellAmount": "1930448532104492187500000",
-      "buyAmount": "6787937",
-      "price": "3.516248626737581",
-      "benchmarkPrice": "3.4732200000000004",
+      "ts": "2026-11-12T08:47:16.000Z",
+      "sellAmount": "98404121398925781250000",
+      "buyAmount": "383389",
+      "price": "3.896066491420198",
+      "benchmarkPrice": "4.080620126964202",
       "status": "success",
-      "requestId": "sim-3",
-      "intentHash": "sim-ih-sim-3"
+      "requestId": "Chh97SP3DavqpbSJV4g1WmZD4ufvXAn98T2WKRmR4yUe",
+      "intentHash": "Chh97SP3DavqpbSJV4g1WmZD4ufvXAn98T2WKRmR4yUe"
     },
     {
       "index": 3,
-      "ts": "2026-11-12T06:29:23.000Z",
-      "sellAmount": "981593132019042968750000",
-      "buyAmount": "3451366",
-      "price": "3.5160861332646767",
-      "benchmarkPrice": "3.4742",
+      "ts": "2026-11-12T08:47:42.000Z",
+      "sellAmount": "92755508422851562500000",
+      "buyAmount": "332750",
+      "price": "3.5873880231788218",
+      "benchmarkPrice": "3.7418148531084525",
       "status": "success",
-      "requestId": "sim-4",
-      "intentHash": "sim-ih-sim-4"
+      "requestId": "6PMKELBonzhZU5AhD7ZWSv6sDeMmwGqVq3W8RDumin1Q",
+      "intentHash": "6PMKELBonzhZU5AhD7ZWSv6sDeMmwGqVq3W8RDumin1Q"
+    },
+    {
+      "index": 4,
+      "ts": "2026-11-12T08:48:04.000Z",
+      "sellAmount": "74923467636108398437500",
+      "buyAmount": "250662",
+      "price": "3.345573929084893",
+      "benchmarkPrice": "3.459676390735925",
+      "status": "success",
+      "requestId": "632NvEcd8WzW9sRvX5SAJ5v8n2Xqf5F44aJ6cPoKK2BB",
+      "intentHash": "632NvEcd8WzW9sRvX5SAJ5v8n2Xqf5F44aJ6cPoKK2BB"
     }
   ],
   "ledger": [
     {
-      "ts": "2026-11-12T06:28:48.000Z",
+      "ts": "2026-11-12T08:46:40.000Z",
       "kind": "sale",
-      "label": "mandate 5 chunk 0",
+      "label": "mandate 9 chunk 0",
       "token": "sell",
-      "amount": "1267123222351074218750000",
+      "amount": "54805135726928710937500",
       "chain": "near",
       "ref": null,
       "status": "success"
     },
     {
-      "ts": "2026-11-12T06:29:01.000Z",
+      "ts": "2026-11-12T08:47:06.000Z",
       "kind": "sale",
-      "label": "mandate 5 chunk 1",
+      "label": "mandate 9 chunk 1",
       "token": "sell",
-      "amount": "1820835113525390625000000",
+      "amount": "79111766815185546875000",
       "chain": "near",
       "ref": null,
       "status": "success"
     },
     {
-      "ts": "2026-11-12T06:29:13.000Z",
+      "ts": "2026-11-12T08:47:32.000Z",
       "kind": "sale",
-      "label": "mandate 5 chunk 2",
+      "label": "mandate 9 chunk 2",
       "token": "sell",
-      "amount": "1930448532104492187500000",
+      "amount": "98404121398925781250000",
       "chain": "near",
       "ref": null,
       "status": "success"
     },
     {
-      "ts": "2026-11-12T06:29:26.000Z",
+      "ts": "2026-11-12T08:47:58.000Z",
       "kind": "sale",
-      "label": "mandate 5 chunk 3",
+      "label": "mandate 9 chunk 3",
       "token": "sell",
-      "amount": "981593132019042968750000",
+      "amount": "92755508422851562500000",
       "chain": "near",
       "ref": null,
       "status": "success"
     },
     {
-      "ts": "2026-11-12T06:30:17.000Z",
+      "ts": "2026-11-12T08:48:19.000Z",
       "kind": "sale",
-      "label": "mandate 6 chunk 0",
+      "label": "mandate 9 chunk 4",
       "token": "sell",
-      "amount": "1127439498901367187500000",
+      "amount": "74923467636108398437500",
       "chain": "near",
       "ref": null,
       "status": "success"
     },
     {
-      "ts": "2026-11-12T06:30:26.000Z",
+      "ts": "2026-11-12T08:50:48.000Z",
       "kind": "sale",
-      "label": "mandate 6 chunk 1",
+      "label": "mandate 10 chunk 0",
       "token": "sell",
-      "amount": "1744913101196289062500000",
+      "amount": "54641542434692382812500",
       "chain": "near",
       "ref": null,
       "status": "success"
     },
     {
-      "ts": "2026-11-12T06:30:59.294Z",
+      "ts": "2026-11-12T08:51:14.000Z",
+      "kind": "sale",
+      "label": "mandate 10 chunk 1",
+      "token": "sell",
+      "amount": "57773437500000000000000",
+      "chain": "near",
+      "ref": null,
+      "status": "success"
+    },
+    {
+      "ts": "2026-11-12T08:53:08.218Z",
       "kind": "fee",
       "label": "service fee",
-      "token": "USDC",
-      "amount": "105490",
+      "token": "USDT.e",
+      "amount": "7733",
       "chain": "near",
-      "ref": "sim-dest-tx-5",
+      "ref": "Ft6hPAwEoJQb3mG3MqJbcegWDC81z3dLobnk84oHbDaA",
       "status": "success"
     },
     {
-      "ts": "2026-11-12T06:30:59.295Z",
+      "ts": "2026-11-12T08:53:08.219Z",
       "kind": "payout",
       "label": "alice",
-      "token": "USDC",
-      "amount": "12595621",
-      "chain": "solana",
-      "ref": "sim-dest-tx-6",
+      "token": "USDT.e",
+      "amount": "769434",
+      "chain": "near",
+      "ref": "FDLQ3ckR1vaoMG7xSSLeT37BSjrbXWhzAMhRGromnwxy",
       "status": "success"
     },
     {
-      "ts": "2026-11-12T06:30:59.295Z",
+      "ts": "2026-11-12T08:53:08.219Z",
       "kind": "payout",
       "label": "bob",
-      "token": "USDC",
-      "amount": "6297810",
-      "chain": "base",
-      "ref": "sim-dest-tx-7",
+      "token": "USDT.e",
+      "amount": "307773",
+      "chain": "near",
+      "ref": "7GEHwtdQM8ZFAnkxv7FwmLjf44SKYoiAJaYi5RGr2UmQ",
       "status": "success"
     },
     {
-      "ts": "2026-11-12T06:30:59.295Z",
+      "ts": "2026-11-12T08:53:08.219Z",
       "kind": "return",
       "label": "leftover proceeds -> returnTo",
-      "token": "USDC",
-      "amount": "2099272",
+      "token": "USDT.e",
+      "amount": "461661",
       "chain": "near",
-      "ref": "sim-dest-tx-8",
+      "ref": "4WrFqMSHCGQrd8NHbmSVdMMqttqQW38TokLW7CDC42fK",
       "status": "success"
     },
     {
-      "ts": "2026-11-12T06:30:59.295Z",
+      "ts": "2026-11-12T08:53:08.219Z",
       "kind": "return",
       "label": "leftover proceeds -> returnTo",
-      "token": "USDC",
-      "amount": "10091577",
+      "token": "USDT.e",
+      "amount": "348995",
       "chain": "near",
-      "ref": "sim-dest-tx-11",
+      "ref": "7hesG1bTagxZQgogLr9nBzhReYKNWw88o9YQJoDCVwTi",
       "status": "success"
     },
     {
-      "ts": "2026-11-12T06:30:59.295Z",
+      "ts": "2026-11-12T08:53:08.219Z",
       "kind": "return",
       "label": "unspent budget -> returnTo",
       "token": "wNEAR",
-      "amount": "7127647399902343750000000",
+      "amount": "187585020065307617187500",
       "chain": "near",
-      "ref": "sim-dest-tx-12",
+      "ref": "9QLxRy59ofAkQefsTk3qxXYFVxPdZyegKHpxhptm1JWA",
       "status": "success"
     }
   ],
   "report": {
-    "mandateId": 5,
-    "generatedAt": "2026-11-12T06:29:42.000Z",
-    "totalSold": "6000000000000000000000000",
-    "totalBought": "21098193",
-    "avgPrice": "3.516365499999999",
-    "benchmarkPrice": "3.4735552631578948",
-    "benchmarkSource": "1click dry quote",
+    "mandateId": 9,
+    "generatedAt": "2026-11-12T08:48:47.000Z",
+    "totalSold": "400000000000000000000000",
+    "totalBought": "1546601",
+    "avgPrice": "3.8665024999999997",
+    "benchmarkPrice": "4.272400550538184",
+    "benchmarkSource": "ref pool #57 spot",
     "slippageBps": null,
-    "feesPaid": "105490",
-    "returned": "2099272",
+    "feesPaid": "7733",
+    "returned": "461661",
     "violations": 0,
-    "summary": "Mandate 5 sold 6000000000000000000000000 sell tokens across 4 fills for proceeds of 21098193 at an average price of 3.516365499999999 (worst fill 3.5158056623207323), beating the benchmark TWAP of 3.4735552631578948 by 123 bps while respecting the floor price of 1, with no violations recorded. All fill, payout, and leftover figures come from a simulated testnet execution and are not real trades. Successful simulated payouts of 12595621 to alice on Solana and 6297810 to bob on Base totaled the payoutTotalBuy of 18893431, a leftover of 2099272 was returned to quietdao-83872.sputnikv2.testnet, and a fee of 105490 was paid.",
+    "summary": "Mandate 9 sold 0.4 NEAR across 5 on-chain fills at an average price of ~3.8665 USDC per NEAR (worst fill ~3.3456), generating 1.546601 USDC in proceeds against a benchmark TWAP of ~4.2724 for an edge of -950 bps, with the 2 USDC floor price respected and no violations recorded. Successful payouts of 0.769434 USDC to alice and 0.307773 USDC to bob totaled 1.077207 USDC, after a fee of 0.007733 USDC. A leftover of 0.461661 USDT was returned to the treasury at quietdao-83872.sputnikv2.testnet.",
     "summarySignature": {
-      "text": "f9caf70280bb79832cf9bccafdb5e5f83a2ec01a142e2551aff8383184f4c3fc:e5e5fba827e073d2ce9232ee6c746fb399864f7d426c272ba1339ccaa0b209f1",
+      "text": "cd00346f7667fc76c01dc7006d0d2b83662a3c8076430d35b4df5d15a0bc9f54:3936a424d8f7baadd249af61e1248f32b631bf51f2be9d760c1f81f8c00e4bcb",
       "signature": "",
       "signingAddress": "0x3b753b4406613c5e70ae640508632b600424fa0c",
       "signingAlgo": "ecdsa"
     },
-    "reportHash": "f8246867e412e3b1c26181acfab96b014b973bea220e95165416eceec2a69981",
+    "reportHash": "1dadb344731912ac905102c418e707ba451e55c6efec6d1bd3bbfcd20f445ca8",
     "anchored": true,
     "floorRespected": true
   },
@@ -256,22 +279,22 @@
     {
       "name": "recorded chunk count == successful swaps",
       "ok": true,
-      "detail": "chain 4 / worker 4"
+      "detail": "chain 5 / worker 5"
     },
     {
       "name": "recorded sold == sum of swaps",
       "ok": true,
-      "detail": "chain 6000000000000000000000000"
+      "detail": "chain 400000000000000000000000"
     },
     {
       "name": "sold <= budget",
       "ok": true,
-      "detail": "6000000000000000000000000 / 6000000000000000000000000"
+      "detail": "400000000000000000000000 / 400000000000000000000000"
     },
     {
       "name": "report hash is self-consistent",
       "ok": true,
-      "detail": "f8246867e412e3b1..."
+      "detail": "1dadb344731912ac..."
     },
     {
       "name": "report floor respected",
@@ -281,7 +304,7 @@
     {
       "name": "report anchored on-chain",
       "ok": true,
-      "detail": "chain f8246867e412e3b1..."
+      "detail": "chain 1dadb344731912ac..."
     },
     {
       "name": "zero violations",
@@ -291,45 +314,159 @@
   ],
   "balances": [
     {
-      "token": "nep141:wrap.near",
+      "token": "nep141:wrap.testnet",
       "symbol": "wNEAR",
       "amount": "0",
       "where": "intents"
     },
     {
-      "token": "nep141:wrap.near",
+      "token": "nep141:wrap.testnet",
       "symbol": "wNEAR",
       "amount": "0",
       "where": "confidential"
     },
     {
-      "token": "nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1",
-      "symbol": "USDC",
+      "token": "nep141:usdt.fakes.testnet",
+      "symbol": "USDT.e",
       "amount": "0",
       "where": "intents"
     },
     {
-      "token": "nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1",
-      "symbol": "USDC",
-      "amount": "0",
+      "token": "nep141:usdt.fakes.testnet",
+      "symbol": "USDT.e",
+      "amount": "217521",
       "where": "confidential"
     }
   ],
+  "real": {
+    "vault": {
+      "accountId": "vault.qtagent-68669.testnet",
+      "explorer": "https://explorer.testnet.near.org/accounts/vault.qtagent-68669.testnet"
+    },
+    "pool": {
+      "before": {
+        "poolId": 57,
+        "tokenIn": "wrap.testnet",
+        "tokenOut": "usdt.fakes.testnet",
+        "reserveIn": "2084463568647335802780375",
+        "reserveOut": "9632168",
+        "feeBps": 30,
+        "ts": 1794473140,
+        "source": "chain"
+      },
+      "dex": "ref-finance-101.testnet"
+    },
+    "swaps": [
+      {
+        "index": 0,
+        "tx": "EL2WhifXaNvx71FPyUTuNJX4XajThDnTww3wSBQixsq9",
+        "explorer": "https://explorer.testnet.near.org/transactions/EL2WhifXaNvx71FPyUTuNJX4XajThDnTww3wSBQixsq9",
+        "in": "54805135726928710937500",
+        "out": "246041"
+      },
+      {
+        "index": 1,
+        "tx": "2zbzaYSyum5YA7zkbhKwWzkhntnKUaRxUGHvt3xaZjWC",
+        "explorer": "https://explorer.testnet.near.org/transactions/2zbzaYSyum5YA7zkbhKwWzkhntnKUaRxUGHvt3xaZjWC",
+        "in": "79111766815185546875000",
+        "out": "333759"
+      },
+      {
+        "index": 2,
+        "tx": "Chh97SP3DavqpbSJV4g1WmZD4ufvXAn98T2WKRmR4yUe",
+        "explorer": "https://explorer.testnet.near.org/transactions/Chh97SP3DavqpbSJV4g1WmZD4ufvXAn98T2WKRmR4yUe",
+        "in": "98404121398925781250000",
+        "out": "383389"
+      },
+      {
+        "index": 3,
+        "tx": "6PMKELBonzhZU5AhD7ZWSv6sDeMmwGqVq3W8RDumin1Q",
+        "explorer": "https://explorer.testnet.near.org/transactions/6PMKELBonzhZU5AhD7ZWSv6sDeMmwGqVq3W8RDumin1Q",
+        "in": "92755508422851562500000",
+        "out": "332750"
+      },
+      {
+        "index": 4,
+        "tx": "632NvEcd8WzW9sRvX5SAJ5v8n2Xqf5F44aJ6cPoKK2BB",
+        "explorer": "https://explorer.testnet.near.org/transactions/632NvEcd8WzW9sRvX5SAJ5v8n2Xqf5F44aJ6cPoKK2BB",
+        "in": "74923467636108398437500",
+        "out": "250662"
+      }
+    ],
+    "payouts": [
+      {
+        "kind": "fee",
+        "label": "service fee",
+        "to": "qtfund-83872.testnet",
+        "token": "nep141:usdt.fakes.testnet",
+        "amount": "7733",
+        "status": "success",
+        "tx": "Ft6hPAwEoJQb3mG3MqJbcegWDC81z3dLobnk84oHbDaA",
+        "explorer": "https://explorer.testnet.near.org/transactions/Ft6hPAwEoJQb3mG3MqJbcegWDC81z3dLobnk84oHbDaA"
+      },
+      {
+        "kind": "payout",
+        "label": "alice",
+        "to": "qtcontrib-68669.testnet",
+        "token": "nep141:usdt.fakes.testnet",
+        "amount": "769434",
+        "status": "success",
+        "tx": "FDLQ3ckR1vaoMG7xSSLeT37BSjrbXWhzAMhRGromnwxy",
+        "explorer": "https://explorer.testnet.near.org/transactions/FDLQ3ckR1vaoMG7xSSLeT37BSjrbXWhzAMhRGromnwxy"
+      },
+      {
+        "kind": "payout",
+        "label": "bob",
+        "to": "qttreasurer-83872.testnet",
+        "token": "nep141:usdt.fakes.testnet",
+        "amount": "307773",
+        "status": "success",
+        "tx": "7GEHwtdQM8ZFAnkxv7FwmLjf44SKYoiAJaYi5RGr2UmQ",
+        "explorer": "https://explorer.testnet.near.org/transactions/7GEHwtdQM8ZFAnkxv7FwmLjf44SKYoiAJaYi5RGr2UmQ"
+      },
+      {
+        "kind": "return_buy",
+        "label": "leftover proceeds -> returnTo",
+        "to": "quietdao-83872.sputnikv2.testnet",
+        "token": "nep141:usdt.fakes.testnet",
+        "amount": "461661",
+        "status": "success",
+        "tx": "4WrFqMSHCGQrd8NHbmSVdMMqttqQW38TokLW7CDC42fK",
+        "explorer": "https://explorer.testnet.near.org/transactions/4WrFqMSHCGQrd8NHbmSVdMMqttqQW38TokLW7CDC42fK"
+      }
+    ],
+    "balanceDeltas": {
+      "aliceUsdt": "769434",
+      "bobUsdt": "307773",
+      "operatorUsdt": "7733",
+      "daoUsdt": "461661"
+    },
+    "oneShot": {
+      "amountOut": "1546879",
+      "poolId": 57,
+      "reserveIn": "2084463568647335802780375",
+      "reserveOut": "9632168",
+      "feeBps": 30,
+      "snapshotTs": 1794473184,
+      "chunkedVsOneShotBps": -1,
+      "source": "chain"
+    }
+  },
   "cancelRun": {
     "mandate": {
-      "id": 6,
+      "id": 10,
       "treasurer": "qttreasurer-83872.testnet",
-      "terms_hash": "1897d2759f154f97a73b3a6e6b7135d0f6e83ffc9786cee17acf27beabe517e7",
-      "terms_json": "{\"dao\":\"quietdao-83872.sputnikv2.testnet\",\"treasurer\":\"qttreasurer-83872.testnet\",\"sellToken\":\"nep141:wrap.near\",\"buyToken\":\"nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1\",\"maxSellAmount\":\"10000000000000000000000000\",\"minPrice\":\"1.0\",\"startTs\":1794464995,\"endTs\":1794465598,\"chunkMin\":\"1000000000000000000000000\",\"chunkMax\":\"2000000000000000000000000\",\"intervalMinS\":5,\"intervalMaxS\":6,\"payouts\":[{\"label\":\"alice (Solana)\",\"chain\":\"solana\",\"address\":\"9xQeWvG816bUx9EPjHmaT23yvVM2ZWbrrpZb9PusVFin\",\"token\":\"nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1\",\"percent\":60}],\"feeBps\":50,\"feeRecipient\":\"qtcontrib-68669.testnet\",\"returnTo\":\"quietdao-83872.sputnikv2.testnet\",\"sealed\":false}",
-      "sell_token": "nep141:wrap.near",
-      "max_sell": "10000000000000000000000000",
-      "start_ns": 1794464995000000000,
-      "end_ns": 1794465598000000000,
+      "terms_hash": "441a745b4c54ff7a6a33b1253362dc4e31569935286b98160c65c93ad817322a",
+      "terms_json": "{\"dao\":\"quietdao-83872.sputnikv2.testnet\",\"treasurer\":\"qttreasurer-83872.testnet\",\"sellToken\":\"nep141:wrap.testnet\",\"buyToken\":\"nep141:usdt.fakes.testnet\",\"maxSellAmount\":\"300000000000000000000000\",\"minPrice\":\"1.5\",\"startTs\":1794473400,\"endTs\":1794474003,\"chunkMin\":\"50000000000000000000000\",\"chunkMax\":\"60000000000000000000000\",\"intervalMinS\":6,\"intervalMaxS\":8,\"payouts\":[{\"label\":\"alice\",\"chain\":\"near\",\"address\":\"qtcontrib-68669.testnet\",\"token\":\"nep141:usdt.fakes.testnet\",\"percent\":50}],\"feeBps\":50,\"feeRecipient\":\"qtfund-83872.testnet\",\"returnTo\":\"quietdao-83872.sputnikv2.testnet\",\"sealed\":false}",
+      "sell_token": "nep141:wrap.testnet",
+      "max_sell": "300000000000000000000000",
+      "start_ns": 1794473400000000000,
+      "end_ns": 1794474003000000000,
       "tier": "small",
       "status": "Cancelled",
-      "sold": "2872352600097656250000000",
+      "sold": "112414979934692382812500",
       "chunks": 2,
-      "created_ns": 1794465005233547300,
+      "created_ns": 1794473410344857900,
       "report_hash": null,
       "revealed_terms": null
     },
@@ -337,14 +474,18 @@
       {
         "kind": "return_buy",
         "to": "quietdao-83872.sputnikv2.testnet",
-        "amount": "10091577",
-        "status": "success"
+        "amount": "348995",
+        "status": "success",
+        "tx": "7hesG1bTagxZQgogLr9nBzhReYKNWw88o9YQJoDCVwTi",
+        "explorer": "https://explorer.testnet.near.org/transactions/7hesG1bTagxZQgogLr9nBzhReYKNWw88o9YQJoDCVwTi"
       },
       {
         "kind": "return_sell",
         "to": "quietdao-83872.sputnikv2.testnet",
-        "amount": "7127647399902343750000000",
-        "status": "success"
+        "amount": "187585020065307617187500",
+        "status": "success",
+        "tx": "9QLxRy59ofAkQefsTk3qxXYFVxPdZyegKHpxhptm1JWA",
+        "explorer": "https://explorer.testnet.near.org/transactions/9QLxRy59ofAkQefsTk3qxXYFVxPdZyegKHpxhptm1JWA"
       }
     ]
   },
@@ -455,6 +596,116 @@
         "qtc3-68669.testnet": "Approve",
         "qtc1-68669.testnet": "Approve"
       }
+    },
+    {
+      "id": 11,
+      "status": "Failed",
+      "description": "Announce settled mandate #5 on near.social (DAO-signed post)",
+      "kind": "FunctionCall",
+      "votes": {
+        "qtc1-68669.testnet": "Approve",
+        "qtc2-68669.testnet": "Approve"
+      }
+    },
+    {
+      "id": 12,
+      "status": "Approved",
+      "description": "Quiet Treasury: sell 0.40 NEAR quietly for USDT.e (mandate #7)",
+      "kind": "FunctionCall",
+      "votes": {
+        "qtc1-68669.testnet": "Approve",
+        "qtc2-68669.testnet": "Approve"
+      }
+    },
+    {
+      "id": 13,
+      "status": "Approved",
+      "description": "Fund the agent vault with 0.40 NEAR for mandate #7",
+      "kind": "Transfer",
+      "votes": {
+        "qtc1-68669.testnet": "Approve",
+        "qtc3-68669.testnet": "Approve"
+      }
+    },
+    {
+      "id": 14,
+      "status": "Approved",
+      "description": "Second mandate #8 (will be cancelled mid-run)",
+      "kind": "FunctionCall",
+      "votes": {
+        "qtc3-68669.testnet": "Approve",
+        "qtc2-68669.testnet": "Approve"
+      }
+    },
+    {
+      "id": 15,
+      "status": "Approved",
+      "description": "Fund the agent vault with 0.3 NEAR for mandate #8",
+      "kind": "Transfer",
+      "votes": {
+        "qtc3-68669.testnet": "Approve",
+        "qtc2-68669.testnet": "Approve"
+      }
+    },
+    {
+      "id": 16,
+      "status": "Approved",
+      "description": "Housekeeping: cancel stale mandate #8",
+      "kind": "FunctionCall",
+      "votes": {
+        "qtc1-68669.testnet": "Approve",
+        "qtc2-68669.testnet": "Approve"
+      }
+    },
+    {
+      "id": 17,
+      "status": "Approved",
+      "description": "Quiet Treasury: sell 0.40 NEAR quietly for USDT.e (mandate #9)",
+      "kind": "FunctionCall",
+      "votes": {
+        "qtc1-68669.testnet": "Approve",
+        "qtc2-68669.testnet": "Approve"
+      }
+    },
+    {
+      "id": 18,
+      "status": "Approved",
+      "description": "Fund the agent vault with 0.40 NEAR for mandate #9",
+      "kind": "Transfer",
+      "votes": {
+        "qtc1-68669.testnet": "Approve",
+        "qtc3-68669.testnet": "Approve"
+      }
+    },
+    {
+      "id": 19,
+      "status": "Approved",
+      "description": "Second mandate #10 (will be cancelled mid-run)",
+      "kind": "FunctionCall",
+      "votes": {
+        "qtc2-68669.testnet": "Approve",
+        "qtc3-68669.testnet": "Approve"
+      }
+    },
+    {
+      "id": 20,
+      "status": "Approved",
+      "description": "Fund the agent vault with 0.3 NEAR for mandate #10",
+      "kind": "Transfer",
+      "votes": {
+        "qtc3-68669.testnet": "Approve",
+        "qtc2-68669.testnet": "Approve"
+      }
+    },
+    {
+      "id": 21,
+      "status": "Approved",
+      "description": "Cancel mandate #10",
+      "kind": "FunctionCall",
+      "votes": {
+        "qtc1-68669.testnet": "Approve",
+        "qtc3-68669.testnet": "Approve"
+      }
     }
   ],
   "redteam": [
@@ -463,7 +714,7 @@
       "blocked": true,
       "layer": "B (executor guard + mandate contract)",
       "status": null,
-      "error": "guard: amount 7127647399902343750000001 exceeds remaining budget 7127647399902343750000000 | contract: WebAssembly trap: An `unreachable` opcode was executed.",
+      "error": "guard: amount 187585020065307617187501 exceeds remaining budget 187585020065307617187500 | contract: WebAssembly trap: An `unreachable` opcode was executed.",
       "requestId": null
     },
     {
@@ -581,99 +832,254 @@
   },
   "txs": [
     {
+      "label": "DAO proposal: cancel stale mandate #8",
+      "txHash": "CSonJDzZZi4XqefDY8DG8JFdB9CUGY27k5uaoazSBK2a",
+      "explorer": "https://explorer.testnet.near.org/transactions/CSonJDzZZi4XqefDY8DG8JFdB9CUGY27k5uaoazSBK2a"
+    },
+    {
+      "label": "housekeeping cancel #8 vote 1/3",
+      "txHash": "XPQhCtVJBj6jWU6juurvkMvYvo6nWWX3wr7Va3kQ2sR",
+      "explorer": "https://explorer.testnet.near.org/transactions/XPQhCtVJBj6jWU6juurvkMvYvo6nWWX3wr7Va3kQ2sR"
+    },
+    {
+      "label": "housekeeping cancel #8 vote 2/3 -> executes",
+      "txHash": "HpVmGxaWNQJ9tSMkYmyUkV3Cpxbwymg2YcmJB1kdRn4c",
+      "explorer": "https://explorer.testnet.near.org/transactions/HpVmGxaWNQJ9tSMkYmyUkV3Cpxbwymg2YcmJB1kdRn4c"
+    },
+    {
       "label": "DAO proposal: create_mandate (AI-parsed terms)",
-      "txHash": "4xivPhVT5PYG9tcq16GoapED7UGVMBgjW3q9uPSnBYcJ",
-      "explorer": "https://explorer.testnet.near.org/transactions/4xivPhVT5PYG9tcq16GoapED7UGVMBgjW3q9uPSnBYcJ"
+      "txHash": "6Z1enRGHqfpHtVWjVVDdYQQwjhFWtvabvr381RtTVPY6",
+      "explorer": "https://explorer.testnet.near.org/transactions/6Z1enRGHqfpHtVWjVVDdYQQwjhFWtvabvr381RtTVPY6"
     },
     {
       "label": "vote 1/3 approve (council1)",
-      "txHash": "A8HugtMtig7UedCoNP8Xn5Y3Dje7waKDCmtF3UhYtBh",
-      "explorer": "https://explorer.testnet.near.org/transactions/A8HugtMtig7UedCoNP8Xn5Y3Dje7waKDCmtF3UhYtBh"
+      "txHash": "Bw2mxrP7YztwC1F95FtjwPdYgeCnKAuNE9Ntzk2cxJgr",
+      "explorer": "https://explorer.testnet.near.org/transactions/Bw2mxrP7YztwC1F95FtjwPdYgeCnKAuNE9Ntzk2cxJgr"
     },
     {
       "label": "vote 2/3 approve (council2) -> executes",
-      "txHash": "94Y2sPykyLdvavAY1taa85zGojTyrii8fpZtcxiHtebp",
-      "explorer": "https://explorer.testnet.near.org/transactions/94Y2sPykyLdvavAY1taa85zGojTyrii8fpZtcxiHtebp"
+      "txHash": "DeggproYexFERCrFvuT9t1ykts8neqRJLNBEwHjQFArv",
+      "explorer": "https://explorer.testnet.near.org/transactions/DeggproYexFERCrFvuT9t1ykts8neqRJLNBEwHjQFArv"
     },
     {
-      "label": "agent: mark_funded #5",
-      "txHash": "348iHtwpN5Tm9MuTbooG5YWtnb9hoU3kXhtycbgZ8imr",
-      "explorer": "https://explorer.testnet.near.org/transactions/348iHtwpN5Tm9MuTbooG5YWtnb9hoU3kXhtycbgZ8imr"
+      "label": "DAO proposal: Transfer budget (native NEAR) DAO -> agent vault",
+      "txHash": "EdKYXFLoYpQiUAmyPd9nRaZmBd4Jhb6jmHBZbw5PWq36",
+      "explorer": "https://explorer.testnet.near.org/transactions/EdKYXFLoYpQiUAmyPd9nRaZmBd4Jhb6jmHBZbw5PWq36"
     },
     {
-      "label": "agent: record_chunk #5.0",
-      "txHash": "3HQhDRWHqshboWT6oXPHsuV4sZXrjHbxfbMo3Fxwdbcm",
-      "explorer": "https://explorer.testnet.near.org/transactions/3HQhDRWHqshboWT6oXPHsuV4sZXrjHbxfbMo3Fxwdbcm"
+      "label": "funding vote 1/3 (council1)",
+      "txHash": "G6p2VWx2n3PqdxWMTtrXtH8peuNDCpZVNswNdVDRUCKx",
+      "explorer": "https://explorer.testnet.near.org/transactions/G6p2VWx2n3PqdxWMTtrXtH8peuNDCpZVNswNdVDRUCKx"
     },
     {
-      "label": "agent: record_chunk #5.1",
-      "txHash": "DkTcHPbuNGPu64PjS1cyTLELcG33CqaSa4Qb3MvFnTNZ",
-      "explorer": "https://explorer.testnet.near.org/transactions/DkTcHPbuNGPu64PjS1cyTLELcG33CqaSa4Qb3MvFnTNZ"
+      "label": "funding vote 2/3 (council3) -> executes the REAL transfer",
+      "txHash": "Myy7nEZhAhP3SUBSB3vSD7XKio1At8UFYyPhtnW5cma",
+      "explorer": "https://explorer.testnet.near.org/transactions/Myy7nEZhAhP3SUBSB3vSD7XKio1At8UFYyPhtnW5cma"
     },
     {
-      "label": "agent: record_chunk #5.2",
-      "txHash": "B3jgqNhp3RcUNyDrtxbopPhk7ckBkVyWNrhYLBakVbeH",
-      "explorer": "https://explorer.testnet.near.org/transactions/B3jgqNhp3RcUNyDrtxbopPhk7ckBkVyWNrhYLBakVbeH"
+      "label": "agent: mark_funded #9",
+      "txHash": "785f3J14So4QZByPWBzoGQKmPqAnr9WJ7qRhpU1wf8Xn",
+      "explorer": "https://explorer.testnet.near.org/transactions/785f3J14So4QZByPWBzoGQKmPqAnr9WJ7qRhpU1wf8Xn"
     },
     {
-      "label": "agent: record_chunk #5.3",
-      "txHash": "BoX32Z28FCemNBSjQkcX6Pp3W84TM3XHSWT5iifjyoBv",
-      "explorer": "https://explorer.testnet.near.org/transactions/BoX32Z28FCemNBSjQkcX6Pp3W84TM3XHSWT5iifjyoBv"
+      "label": "vault: ref-finance-101.testnet.register_tokens",
+      "txHash": "2Hn75BRHHd913V8x9BigFCtaJzNgCPpBCsrhq5wD3EkE",
+      "explorer": "https://explorer.testnet.near.org/transactions/2Hn75BRHHd913V8x9BigFCtaJzNgCPpBCsrhq5wD3EkE"
     },
     {
-      "label": "agent: begin_settlement #5",
-      "txHash": "9fEN97LsCnkoHRSFuMj3cFKZikDT5XjYQAtAGvpkcdVD",
-      "explorer": "https://explorer.testnet.near.org/transactions/9fEN97LsCnkoHRSFuMj3cFKZikDT5XjYQAtAGvpkcdVD"
+      "label": "vault: wrap.testnet.near_deposit",
+      "txHash": "9c16tz4zQAtPJppSPJMMbVPeTfMF4EYVLtUATXwFmh3",
+      "explorer": "https://explorer.testnet.near.org/transactions/9c16tz4zQAtPJppSPJMMbVPeTfMF4EYVLtUATXwFmh3"
     },
     {
-      "label": "agent: complete #5 (anchors report hash)",
-      "txHash": "4rYhdKuKhcQ5nS7mwxmJFJcNUG64xPs4sz9sLjQEm8mK",
-      "explorer": "https://explorer.testnet.near.org/transactions/4rYhdKuKhcQ5nS7mwxmJFJcNUG64xPs4sz9sLjQEm8mK"
+      "label": "vault: wrap.testnet.ft_transfer_call",
+      "txHash": "EL2WhifXaNvx71FPyUTuNJX4XajThDnTww3wSBQixsq9",
+      "explorer": "https://explorer.testnet.near.org/transactions/EL2WhifXaNvx71FPyUTuNJX4XajThDnTww3wSBQixsq9"
+    },
+    {
+      "label": "agent: record_chunk #9.0",
+      "txHash": "13hQpk6S4iYWgFBrpDAmTtbk8dTQA2m3NPLe7qrE4hKY",
+      "explorer": "https://explorer.testnet.near.org/transactions/13hQpk6S4iYWgFBrpDAmTtbk8dTQA2m3NPLe7qrE4hKY"
+    },
+    {
+      "label": "vault: wrap.testnet.near_deposit",
+      "txHash": "Bxc1z7mX2SrjwmzK9RJMtWurKjtcYhKRNoiLBzrNtx4b",
+      "explorer": "https://explorer.testnet.near.org/transactions/Bxc1z7mX2SrjwmzK9RJMtWurKjtcYhKRNoiLBzrNtx4b"
+    },
+    {
+      "label": "vault: wrap.testnet.ft_transfer_call",
+      "txHash": "2zbzaYSyum5YA7zkbhKwWzkhntnKUaRxUGHvt3xaZjWC",
+      "explorer": "https://explorer.testnet.near.org/transactions/2zbzaYSyum5YA7zkbhKwWzkhntnKUaRxUGHvt3xaZjWC"
+    },
+    {
+      "label": "agent: record_chunk #9.1",
+      "txHash": "25v6Nfwf2Hh1xmuxC8pZHd5NNSXi3kMryCiMr3hvR9aB",
+      "explorer": "https://explorer.testnet.near.org/transactions/25v6Nfwf2Hh1xmuxC8pZHd5NNSXi3kMryCiMr3hvR9aB"
+    },
+    {
+      "label": "vault: wrap.testnet.near_deposit",
+      "txHash": "EUGAvqNk6NSeephjzHLGPYWoFKGtxEEKLMaonrxiMq7X",
+      "explorer": "https://explorer.testnet.near.org/transactions/EUGAvqNk6NSeephjzHLGPYWoFKGtxEEKLMaonrxiMq7X"
+    },
+    {
+      "label": "vault: wrap.testnet.ft_transfer_call",
+      "txHash": "Chh97SP3DavqpbSJV4g1WmZD4ufvXAn98T2WKRmR4yUe",
+      "explorer": "https://explorer.testnet.near.org/transactions/Chh97SP3DavqpbSJV4g1WmZD4ufvXAn98T2WKRmR4yUe"
+    },
+    {
+      "label": "agent: record_chunk #9.2",
+      "txHash": "6EyPbCVZHkd7oB2DBL35t212DBo6Y3fR5ubYbTwqNooS",
+      "explorer": "https://explorer.testnet.near.org/transactions/6EyPbCVZHkd7oB2DBL35t212DBo6Y3fR5ubYbTwqNooS"
+    },
+    {
+      "label": "vault: wrap.testnet.near_deposit",
+      "txHash": "4SYS3ktDWHPnyRY5NhLEX2AukQ9eBvAqVD2EQkd3GRNF",
+      "explorer": "https://explorer.testnet.near.org/transactions/4SYS3ktDWHPnyRY5NhLEX2AukQ9eBvAqVD2EQkd3GRNF"
+    },
+    {
+      "label": "vault: wrap.testnet.ft_transfer_call",
+      "txHash": "6PMKELBonzhZU5AhD7ZWSv6sDeMmwGqVq3W8RDumin1Q",
+      "explorer": "https://explorer.testnet.near.org/transactions/6PMKELBonzhZU5AhD7ZWSv6sDeMmwGqVq3W8RDumin1Q"
+    },
+    {
+      "label": "agent: record_chunk #9.3",
+      "txHash": "CTCoKLt9bTp9yFnCtopGrdGWhrqUMKyure2oB5b6BRRS",
+      "explorer": "https://explorer.testnet.near.org/transactions/CTCoKLt9bTp9yFnCtopGrdGWhrqUMKyure2oB5b6BRRS"
+    },
+    {
+      "label": "vault: wrap.testnet.near_deposit",
+      "txHash": "CgyZk2rbv6uJFNfzQWJeiAYLNz9qt2vCJYF8rSPSmx1t",
+      "explorer": "https://explorer.testnet.near.org/transactions/CgyZk2rbv6uJFNfzQWJeiAYLNz9qt2vCJYF8rSPSmx1t"
+    },
+    {
+      "label": "vault: wrap.testnet.ft_transfer_call",
+      "txHash": "632NvEcd8WzW9sRvX5SAJ5v8n2Xqf5F44aJ6cPoKK2BB",
+      "explorer": "https://explorer.testnet.near.org/transactions/632NvEcd8WzW9sRvX5SAJ5v8n2Xqf5F44aJ6cPoKK2BB"
+    },
+    {
+      "label": "agent: record_chunk #9.4",
+      "txHash": "BdMJBCFDQAto47oQi313RiQB6Ej9q2xHnMi24FSFGwoj",
+      "explorer": "https://explorer.testnet.near.org/transactions/BdMJBCFDQAto47oQi313RiQB6Ej9q2xHnMi24FSFGwoj"
+    },
+    {
+      "label": "agent: begin_settlement #9",
+      "txHash": "GLfQ5dAn3KnFJK7qTtqjbyWCZ6g24gH1jNykL8fceNhV",
+      "explorer": "https://explorer.testnet.near.org/transactions/GLfQ5dAn3KnFJK7qTtqjbyWCZ6g24gH1jNykL8fceNhV"
+    },
+    {
+      "label": "vault: usdt.fakes.testnet.ft_transfer",
+      "txHash": "Ft6hPAwEoJQb3mG3MqJbcegWDC81z3dLobnk84oHbDaA",
+      "explorer": "https://explorer.testnet.near.org/transactions/Ft6hPAwEoJQb3mG3MqJbcegWDC81z3dLobnk84oHbDaA"
+    },
+    {
+      "label": "vault: usdt.fakes.testnet.ft_transfer",
+      "txHash": "FDLQ3ckR1vaoMG7xSSLeT37BSjrbXWhzAMhRGromnwxy",
+      "explorer": "https://explorer.testnet.near.org/transactions/FDLQ3ckR1vaoMG7xSSLeT37BSjrbXWhzAMhRGromnwxy"
+    },
+    {
+      "label": "vault: usdt.fakes.testnet.ft_transfer",
+      "txHash": "7GEHwtdQM8ZFAnkxv7FwmLjf44SKYoiAJaYi5RGr2UmQ",
+      "explorer": "https://explorer.testnet.near.org/transactions/7GEHwtdQM8ZFAnkxv7FwmLjf44SKYoiAJaYi5RGr2UmQ"
+    },
+    {
+      "label": "vault: usdt.fakes.testnet.ft_transfer",
+      "txHash": "4WrFqMSHCGQrd8NHbmSVdMMqttqQW38TokLW7CDC42fK",
+      "explorer": "https://explorer.testnet.near.org/transactions/4WrFqMSHCGQrd8NHbmSVdMMqttqQW38TokLW7CDC42fK"
+    },
+    {
+      "label": "agent: complete #9 (anchors report hash)",
+      "txHash": "Euvz3HaJmEpU8cM87LHJn7HxjjbQE7ySgEGy75PBo89b",
+      "explorer": "https://explorer.testnet.near.org/transactions/Euvz3HaJmEpU8cM87LHJn7HxjjbQE7ySgEGy75PBo89b"
     },
     {
       "label": "DAO proposal: create_mandate #2",
-      "txHash": "Vd2NaUzKu9LU9aZgoJ9b1b6Jhouo3aVGzJaPwHeRLwN",
-      "explorer": "https://explorer.testnet.near.org/transactions/Vd2NaUzKu9LU9aZgoJ9b1b6Jhouo3aVGzJaPwHeRLwN"
+      "txHash": "ATXSiPzsPCd9UKzztTdByd3TQHbc3XR2nJzeUZotcdfH",
+      "explorer": "https://explorer.testnet.near.org/transactions/ATXSiPzsPCd9UKzztTdByd3TQHbc3XR2nJzeUZotcdfH"
     },
     {
       "label": "vote 1/3 approve (council2)",
-      "txHash": "4WbfdYXNRG16EXwf6vmiz9mRS4Q2V3MXPRmHQRZSjSXM",
-      "explorer": "https://explorer.testnet.near.org/transactions/4WbfdYXNRG16EXwf6vmiz9mRS4Q2V3MXPRmHQRZSjSXM"
+      "txHash": "ApWr79V5YW1y7m6P6ipYDiJU9a9xWwui9xjWXjbmfsvt",
+      "explorer": "https://explorer.testnet.near.org/transactions/ApWr79V5YW1y7m6P6ipYDiJU9a9xWwui9xjWXjbmfsvt"
     },
     {
       "label": "vote 2/3 approve (council3) -> executes",
-      "txHash": "7JJAydUfWHy4HGnXWgPCWE8i8fqqm7xvN5o59LXoP2vX",
-      "explorer": "https://explorer.testnet.near.org/transactions/7JJAydUfWHy4HGnXWgPCWE8i8fqqm7xvN5o59LXoP2vX"
+      "txHash": "4gcYUEHGqzSbYzPGzuNfDqCFjURGsrtePW7LjLqqKRJX",
+      "explorer": "https://explorer.testnet.near.org/transactions/4gcYUEHGqzSbYzPGzuNfDqCFjURGsrtePW7LjLqqKRJX"
     },
     {
-      "label": "agent: mark_funded #6",
-      "txHash": "2b3zBTvp9xAf6oze1iZZveoxPdArYv5Hit1m6XYZKrp7",
-      "explorer": "https://explorer.testnet.near.org/transactions/2b3zBTvp9xAf6oze1iZZveoxPdArYv5Hit1m6XYZKrp7"
+      "label": "DAO proposal: Transfer budget #2",
+      "txHash": "3HmRdcfZJnRYF7TnK643TZDWJ3BYNRDoxX18n4NaQcWB",
+      "explorer": "https://explorer.testnet.near.org/transactions/3HmRdcfZJnRYF7TnK643TZDWJ3BYNRDoxX18n4NaQcWB"
     },
     {
-      "label": "agent: record_chunk #6.0",
-      "txHash": "5JWmy7C3ZU8SyPDqQ6GG1tBa78Di9hYYagGQp1bCv3KM",
-      "explorer": "https://explorer.testnet.near.org/transactions/5JWmy7C3ZU8SyPDqQ6GG1tBa78Di9hYYagGQp1bCv3KM"
+      "label": "funding #2 vote 1/3",
+      "txHash": "CBrd2hykd5haHHbLexJPxq4wDN6QbuMApckav8rztcGW",
+      "explorer": "https://explorer.testnet.near.org/transactions/CBrd2hykd5haHHbLexJPxq4wDN6QbuMApckav8rztcGW"
     },
     {
-      "label": "agent: record_chunk #6.1",
-      "txHash": "H3pBs9jDnVyziT74awmjgSgBN4wKHDZT4fkoohb1ty4K",
-      "explorer": "https://explorer.testnet.near.org/transactions/H3pBs9jDnVyziT74awmjgSgBN4wKHDZT4fkoohb1ty4K"
+      "label": "funding #2 vote 2/3 -> executes",
+      "txHash": "BnFP3fi7toYoj9E5erpFr5dtnDyz3adCLMeA3BT9Sw8r",
+      "explorer": "https://explorer.testnet.near.org/transactions/BnFP3fi7toYoj9E5erpFr5dtnDyz3adCLMeA3BT9Sw8r"
+    },
+    {
+      "label": "agent: mark_funded #10",
+      "txHash": "11DeVhfUVohSepsX97bByRGyiDqztiRJZ4DScc28ZyD",
+      "explorer": "https://explorer.testnet.near.org/transactions/11DeVhfUVohSepsX97bByRGyiDqztiRJZ4DScc28ZyD"
+    },
+    {
+      "label": "vault: wrap.testnet.near_deposit",
+      "txHash": "74NT6zGLbf2arCJfu5ySJR2VEEPSKurjDcfgAc9tBYNF",
+      "explorer": "https://explorer.testnet.near.org/transactions/74NT6zGLbf2arCJfu5ySJR2VEEPSKurjDcfgAc9tBYNF"
+    },
+    {
+      "label": "vault: wrap.testnet.ft_transfer_call",
+      "txHash": "4NL1LsS9ChLdLXKS8XyYCFbXyw9C8rRfo7K4cGLqraxY",
+      "explorer": "https://explorer.testnet.near.org/transactions/4NL1LsS9ChLdLXKS8XyYCFbXyw9C8rRfo7K4cGLqraxY"
+    },
+    {
+      "label": "agent: record_chunk #10.0",
+      "txHash": "HJzjtzpEXVgERugu8qe9HZekf7VjX9vHQ39n38yNmSaP",
+      "explorer": "https://explorer.testnet.near.org/transactions/HJzjtzpEXVgERugu8qe9HZekf7VjX9vHQ39n38yNmSaP"
+    },
+    {
+      "label": "vault: wrap.testnet.near_deposit",
+      "txHash": "92xGrLLkPLDDYz6zuuqwKpSfBYjKhuaxQDwymyeDqcbe",
+      "explorer": "https://explorer.testnet.near.org/transactions/92xGrLLkPLDDYz6zuuqwKpSfBYjKhuaxQDwymyeDqcbe"
+    },
+    {
+      "label": "vault: wrap.testnet.ft_transfer_call",
+      "txHash": "Edr7t1yGsXxfp6XVj5vm1f7jsNo5nAWrmLW4tMAWnFz4",
+      "explorer": "https://explorer.testnet.near.org/transactions/Edr7t1yGsXxfp6XVj5vm1f7jsNo5nAWrmLW4tMAWnFz4"
+    },
+    {
+      "label": "agent: record_chunk #10.1",
+      "txHash": "BKAjEvqDhSf8BCCHw7Rp8sEuX71QKWbSUEKTsymNJa9Z",
+      "explorer": "https://explorer.testnet.near.org/transactions/BKAjEvqDhSf8BCCHw7Rp8sEuX71QKWbSUEKTsymNJa9Z"
     },
     {
       "label": "DAO proposal: cancel_mandate",
-      "txHash": "2rSn9e6GpNoGTqHJM9dPAWkeTTc1Ng4DuAYKRo9Dw6xb",
-      "explorer": "https://explorer.testnet.near.org/transactions/2rSn9e6GpNoGTqHJM9dPAWkeTTc1Ng4DuAYKRo9Dw6xb"
+      "txHash": "Brkimd7Z8HH46CxAdzkWRPe6LzJXiP5CqxocKXeA4vTt",
+      "explorer": "https://explorer.testnet.near.org/transactions/Brkimd7Z8HH46CxAdzkWRPe6LzJXiP5CqxocKXeA4vTt"
     },
     {
       "label": "cancel vote 1/3",
-      "txHash": "7ns6BY3Kj98B9oHTYwxDMww7PxEmaDWpy7kEZumodQEt",
-      "explorer": "https://explorer.testnet.near.org/transactions/7ns6BY3Kj98B9oHTYwxDMww7PxEmaDWpy7kEZumodQEt"
+      "txHash": "A8hxUx5qdx9f6kTAutWFtXgDPFVYvVVTgBeq1Zwni6bp",
+      "explorer": "https://explorer.testnet.near.org/transactions/A8hxUx5qdx9f6kTAutWFtXgDPFVYvVVTgBeq1Zwni6bp"
     },
     {
       "label": "cancel vote 2/3 -> executes",
-      "txHash": "JAjidCSNGSCmReJytDBcpUSCqBf59jWB5N4Fj3A4Gm9J",
-      "explorer": "https://explorer.testnet.near.org/transactions/JAjidCSNGSCmReJytDBcpUSCqBf59jWB5N4Fj3A4Gm9J"
+      "txHash": "7J6kTGdY2gfRcoEM8rj4Fi2Lq3GontgAfkBsK3xSCx2Y",
+      "explorer": "https://explorer.testnet.near.org/transactions/7J6kTGdY2gfRcoEM8rj4Fi2Lq3GontgAfkBsK3xSCx2Y"
+    },
+    {
+      "label": "vault: usdt.fakes.testnet.ft_transfer",
+      "txHash": "7hesG1bTagxZQgogLr9nBzhReYKNWw88o9YQJoDCVwTi",
+      "explorer": "https://explorer.testnet.near.org/transactions/7hesG1bTagxZQgogLr9nBzhReYKNWw88o9YQJoDCVwTi"
+    },
+    {
+      "label": "vault: quietdao-83872.sputnikv2.testnet.transfer",
+      "txHash": "9QLxRy59ofAkQefsTk3qxXYFVxPdZyegKHpxhptm1JWA",
+      "explorer": "https://explorer.testnet.near.org/transactions/9QLxRy59ofAkQefsTk3qxXYFVxPdZyegKHpxhptm1JWA"
     }
   ],
   "verifier": {
@@ -753,39 +1159,74 @@
       "note": "Approved"
     },
     {
-      "name": "worker executes chunks and the mandate completes",
+      "name": "one vote does NOT fund the vault; worker waits",
       "ok": true,
-      "note": "status=Completed chunks=4"
+      "note": ""
     },
     {
-      "name": "chunks recorded on chain == simulated fills",
+      "name": "DAO funding transfer credited the vault (real native NEAR)",
       "ok": true,
-      "note": "chain 4 / fills 4"
+      "note": "0.4 NEAR budget"
+    },
+    {
+      "name": "worker executes REAL swaps and the mandate completes",
+      "ok": true,
+      "note": "status=Completed chunks=5"
+    },
+    {
+      "name": "chunks recorded on chain == real swaps executed",
+      "ok": true,
+      "note": "chain 5 / swaps 5"
     },
     {
       "name": "sold never exceeds the DAO-approved budget",
       "ok": true,
-      "note": "6000000000000000000000000 / 6000000000000000000000000"
+      "note": "0.4 / 0.4 NEAR"
     },
     {
-      "name": "every swap carried a price floor",
+      "name": "every swap request id is a real transaction hash that exists on chain",
+      "ok": true,
+      "note": "EL2WhifX,2zbzaYSy,Chh97SP3,6PMKELBo,632NvEcd"
+    },
+    {
+      "name": "report fills are tagged chain (never simulated)",
       "ok": true,
       "note": ""
     },
     {
-      "name": "every withdrawal goes to the payout list / fee recipient / DAO",
+      "name": "every swap respected the price floor",
       "ok": true,
-      "note": "qtcontrib-68669.testnet,9xQeWvG816bUx9EPjHmaT23yvVM2ZWbrrpZb9PusVFin,0x1111111111111111111111111111111111111111,quietdao-83872.sputnikv2.testnet"
+      "note": "worst 3.345573929084893"
+    },
+    {
+      "name": "alice (named account) really received her USDT.e payout",
+      "ok": true,
+      "note": "+769434 (expected 769434)"
+    },
+    {
+      "name": "bob (named account) really received his USDT.e payout",
+      "ok": true,
+      "note": "+307773 (expected 307773)"
+    },
+    {
+      "name": "service fee really paid to the operator account",
+      "ok": true,
+      "note": "+7733"
+    },
+    {
+      "name": "leftover proceeds (USDT.e) really returned to the DAO",
+      "ok": true,
+      "note": "+461661"
+    },
+    {
+      "name": "unspent budget (native NEAR) really returned to the DAO",
+      "ok": true,
+      "note": "fully sold"
     },
     {
       "name": "report hash anchored on chain matches the stored report",
       "ok": true,
-      "note": "f8246867e412e3b1"
-    },
-    {
-      "name": "fills in the report are tagged \"simulated\" (never presented as real)",
-      "ok": true,
-      "note": ""
+      "note": "1dadb344731912ac"
     },
     {
       "name": "NEAR AI signed settlement summary attached",
@@ -793,12 +1234,17 @@
       "note": "0x3b753b4406613c5e70ae640508632b600424fa0c"
     },
     {
+      "name": "report states what ONE swap would have returned (honest AMM baseline)",
+      "ok": true,
+      "note": "chunked vs one-shot -1 bps"
+    },
+    {
       "name": "treasurer earned trust on chain",
       "ok": true,
       "note": ""
     },
     {
-      "name": "second mandate starts trading",
+      "name": "second mandate starts trading (real swaps)",
       "ok": true,
       "note": "chunks=2"
     },
@@ -823,9 +1269,14 @@
       "note": "swaps after cancel: 0"
     },
     {
-      "name": "cancelled mandate paid nobody except the DAO",
+      "name": "cancelled mandate paid nobody except the DAO (real transfers)",
       "ok": true,
-      "note": "quietdao-83872.sputnikv2.testnet,quietdao-83872.sputnikv2.testnet"
+      "note": "return_buy:success,return_sell:success"
+    },
+    {
+      "name": "cancelled run: proceeds (USDT.e) really back in the DAO",
+      "ok": true,
+      "note": "+348995"
     },
     {
       "name": "GET /api/verify: every check green",

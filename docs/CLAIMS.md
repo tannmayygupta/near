@@ -2,23 +2,32 @@
 
 Legend: **VERIFIED-TESTNET** = reproduced on PUBLIC NEAR testnet by a command in this repo (explorer links in `data/demo-run/run.json`) | VERIFIED = reproduced by a command/test here | LOCAL = local sandbox only | **SIMULATED** = produced by the testnet execution adapter, NOT a real trade | UNVERIFIED = not proven live
 
-## What is real vs simulated in the public-testnet run (`npx tsx --env-file=.env scripts/testnet/e2e.ts`, 20/20)
+## What is real in the CURRENT recorded run: `EXEC_MODE=testnet-real` (`npx tsx --env-file=.env scripts/testnet/e2e-real.ts`, 29/29)
+Recorded 2026-11-12 on PUBLIC NEAR testnet; every row has a transaction hash in `data/demo-run/run.json` (`txs`, `real`) and on https://explorer.testnet.near.org.
 | Part | Status |
 |---|---|
 | NEAR AI Cloud TEE parses plain English into a bounds-checked mandate; completions signed; attestation fetched with a fresh nonce | REAL (VERIFIED) |
 | Sputnik DAO v2 proposals + votes (2 of 3) create the mandate; DAO cancel proposal stops it | REAL (VERIFIED-TESTNET) |
+| **DAO funds the agent: a Sputnik `Transfer` proposal moves native NEAR from the DAO treasury to the vault after 2 of 3 votes; one vote funds nothing and the worker waits (`awaiting_funds`)** | **REAL (VERIFIED-TESTNET)** |
+| **Swaps: wNEAR wrap -> `ft_transfer_call` to Ref Finance (`ref-finance-101.testnet`, pool #57) -> USDT.e received in the vault; request id = the swap transaction hash; fills tagged `chain`** | **REAL (VERIFIED-TESTNET)** |
+| **Payouts and service fee: real USDT.e `ft_transfer`s to named testnet accounts; recipient balances increase by exactly the paid amounts (checked on chain)** | **REAL (VERIFIED-TESTNET)** |
+| **Leftover returns: unspent budget (native NEAR) and leftover proceeds (USDT.e) are real transfers back to the DAO; a DAO cancel mid-run really returns everything and pays nobody else** | **REAL (VERIFIED-TESTNET)** |
 | Mandate contract state machine, budget/window enforcement, idempotent chunk records, report-hash anchoring, trust score | REAL (VERIFIED-TESTNET) |
 | OutLayer testnet wallet policy (Layer A) set programmatically; 403 `policy_denied` for unlisted address and over-cap transfer | REAL (VERIFIED-TESTNET, native NEAR transfers; see G13) |
-| Prices/benchmark | REAL read-only 1Click dry quotes (`api`) |
-| Swap fills, payouts, leftover sweep | **SIMULATED** (`sim-*` request ids, source tag `simulated`) |
-| DAO funding transfer credits the agent's Intents balance | **SIMULATED stand-in** (mainnet-only, unproven) |
+| Benchmarks: pool spot price (`chain`), one-shot baseline from a pool snapshot taken before the first chunk (`chain`), mainnet 1Click dry quote used only to reject absurd test pools (`api`) | REAL |
+| **Custody on this path** | **a vault key held by the worker (`vault.qtagent-68669.testnet`). NOT the OutLayer TEE wallet. No confidentiality on testnet.** |
+| OutLayer TEE custody swaps, confidential swaps/withdraws, Intents cross-chain payouts, DAO `Transfer` with `msg` into an Intents balance | **MAINNET-ONLY, UNVERIFIED** (gates G3, G5, G6) |
+
+The previous run (`run-simulated.json`, `proof-bundle-simulated.json`) used `EXEC_MODE=simulated`: swap fills, payouts and leftover sweeps were SIMULATED (`sim-*` ids, source tag `simulated`). It is kept for reference only.
 
 ## Claims table
 | Claim | Status | Evidence |
 |---|---|---|
 | Real Sputnik DAO votes create/cancel mandates; 1 of 3 votes does nothing, 2 of 3 executes | VERIFIED-TESTNET (also LOCAL) | `scripts/testnet/dao-flow.ts` (8/8, tx hashes printed); `scripts/sandbox/dao-flow.ts` (9/9) |
 | Non-DAO callers cannot create mandates; agent cannot exceed budget or act after cancel | VERIFIED-TESTNET | same + 16 contract unit tests. NOTE: the release wasm reports a generic `unreachable` trap, not the require! message |
-| Whole flow: AI parse -> DAO vote -> worker chunks -> payouts/sweep -> signed summary -> anchored report -> verifier; second mandate cancelled mid-run | VERIFIED-TESTNET with SIMULATED fills | `scripts/testnet/e2e.ts` 20/20; `data/demo-run/run.json`; `data/demo-run/proof-bundle.json` |
+| **Whole flow with REAL money movement: AI parse -> DAO vote -> DAO Transfer funds the vault -> worker swaps on Ref -> payouts/fee/leftover returns -> signed summary -> anchored report -> verifier; second mandate cancelled mid-run with real returns** | **VERIFIED-TESTNET (real swaps, payouts, returns)** | `scripts/testnet/e2e-real.ts` 29/29; `data/demo-run/run.json` (`mode: testnet-real`, `real.swaps`, `real.payouts`); [create_mandate proposal](https://explorer.testnet.near.org/transactions/6Z1enRGHqfpHtVWjVVDdYQQwjhFWtvabvr381RtTVPY6), [funding Transfer proposal](https://explorer.testnet.near.org/transactions/EdKYXFLoYpQiUAmyPd9nRaZmBd4Jhb6jmHBZbw5PWq36), [funding executes (vote 2/3)](https://explorer.testnet.near.org/transactions/Myy7nEZhAhP3SUBSB3vSD7XKio1At8UFYyPhtnW5cma), [first swap](https://explorer.testnet.near.org/transactions/EL2WhifXaNvx71FPyUTuNJX4XajThDnTww3wSBQixsq9), [alice payout](https://explorer.testnet.near.org/transactions/FDLQ3ckR1vaoMG7xSSLeT37BSjrbXWhzAMhRGromnwxy), [report anchored (#9)](https://explorer.testnet.near.org/transactions/Euvz3HaJmEpU8cM87LHJn7HxjjbQE7ySgEGy75PBo89b), [DAO cancel executes](https://explorer.testnet.near.org/transactions/7J6kTGdY2gfRcoEM8rj4Fi2Lq3GontgAfkBsK3xSCx2Y) |
+| Chunked selling does NOT beat one swap in this pool (honest result): the report compares realised proceeds with what ONE swap of the same total would have returned from the same pool state (-1 bp in the recorded run, i.e. about the fee) | VERIFIED-TESTNET | `real.oneShot` in `data/demo-run/run.json`; a constant-product AMM is path independent, test `tests/testnet-real.test.ts`. The mandate's value on mainnet is hiding the schedule (unproven), not AMM math |
+| Same flow with SIMULATED fills (older run) | VERIFIED-TESTNET with SIMULATED fills | `scripts/testnet/e2e.ts` 20/20; `data/demo-run/run-simulated.json` |
 | Independent verifier passes (nonce echo, EIP-191 signature recovery, signer attested, report hash, price floor, no violations) | VERIFIED | `npx tsx src/verify/cli.ts data/demo-run/proof-bundle.json` -> 13/13 |
 | NEAR AI signed responses verify end to end | VERIFIED (live key, 2026-11-12) | `scripts/g4-check.ts`, e2e. The Intel TDX quote itself is NOT verified locally (nonce binding + attested-signer listing only; gate U5) |
 | **G13: an OutLayer wallet policy CAN be set programmatically** by an owner NEAR key (encrypt-policy -> sign-policy -> `store_wallet_policy` on `outlayer.testnet`) | VERIFIED-TESTNET | `src/near/outlayer-policy.ts`, `scripts/testnet/layer-a.ts`, `data/testnet-layer-a.json` |
@@ -42,4 +51,4 @@ Legend: **VERIFIED-TESTNET** = reproduced on PUBLIC NEAR testnet by a command in
 | Trezu used for custody/approvals/payouts | **NOT INTEGRATED** | `docs/TREZU.md`: app requires wallet sign-in (not done), no documented testnet deployment; a Trezu treasury is a Sputnik DAO so ours is compatible in principle (unverified) |
 | `/reputation` dashboard page (named accounts, council, trust, near.social feed, DAO-signed post) | VERIFIED (real Chrome, no console errors, 390px no horizontal scroll) | `app/app/reputation/page.tsx` |
 
-Simulated numbers are labelled `simulated` in the report, the CSV, the API and the dashboard. They must never be quoted as real trades.
+Fills from the `testnet-real` adapter are tagged `chain` (request id = a real NEAR transaction hash); the older simulated run's numbers are tagged `simulated` in the report, the CSV, the API and the dashboard and must never be quoted as real trades. Testnet tokens (wNEAR on Ref, USDT.e "fakes") have no monetary value, and the Ref testnet pool is thin with no arbitrageurs, so prices there say nothing about the mainnet product.

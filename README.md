@@ -40,14 +40,17 @@ cd app && npm install && npm run dev   # dashboard (reads recorded run in app/pu
 npx tsx scripts/testnet/setup.ts                      # real Sputnik DAO + mandate contract on testnet (ids in data/testnet-public.json)
 npx tsx scripts/testnet/dao-flow.ts                   # real votes -> contract, real tx hashes: expect 8/8 PASS
 npx tsx scripts/testnet/layer-a.ts                    # OutLayer testnet wallet policy set programmatically + real 403 policy_denied
-npx tsx --env-file=.env scripts/testnet/e2e.ts        # FULL flow incl. NEAR AI signed parse/summary, DAO votes, worker, red team: expect 20/20 PASS
+npx tsx --env-file=.env scripts/testnet/e2e-real.ts   # FULL flow with REAL on-chain money movement (EXEC_MODE=testnet-real): expect 29/29 PASS (~12 min, real tx hashes)
+npx tsx --env-file=.env scripts/testnet/e2e.ts        # older flow with SIMULATED fills (kept for reference): expect 20/20 PASS
 npx tsx src/verify/cli.ts data/demo-run/proof-bundle.json   # independent verification of the recorded run: expect 13/13 PASS
 cp app/.env.testnet.example app/.env.local && cd app && npm run build && npm start   # dashboard pointed at the testnet DAO
-EXEC_MODE=simulated ... npx tsx worker/index.ts       # worker API (see .env.example); EXEC_MODE=live is the default and is UNPROVEN with real money
+EXEC_MODE=testnet-real ... npx tsx worker/index.ts    # worker API doing REAL testnet swaps (env: see worker/README.md); EXEC_MODE=live is the default and is UNPROVEN with real money
 ```
-**On testnet, swap fills, payouts and the leftover sweep are SIMULATED** (priced from real read-only 1Click quotes, request ids `sim-*`, source tag `simulated`): NEAR Intents exists only on mainnet, so no trade happens. Everything else in that run (AI parse + signatures, DAO votes, contract state, anchored report hash, OutLayer wallet-policy denials) is real. See [docs/CLAIMS.md](docs/CLAIMS.md).
+**What is real on testnet (recorded run `mode: testnet-real`, every step has an explorer link in `data/demo-run/run.json`):** the NEAR AI TEE parse and signed completions, the Sputnik DAO votes, a **real Sputnik `Transfer` proposal that funds the agent vault with native NEAR**, **real Ref Finance swaps** (wNEAR to USDT.e, request id = the swap transaction hash), **real USDT.e payouts and fee to named accounts**, **real leftover returns to the DAO**, a real DAO cancel mid-run, the anchored report hash and OutLayer wallet-policy denials.
 
-The recorded testnet run is in `data/demo-run/run.json` (also served by the dashboard from `app/public/demo-run/`) and is labelled **recorded** / **simulated** in the UI. Recorded real-money (mainnet) runs do not exist yet.
+**What is NOT proven (mainnet-only):** OutLayer TEE custody swaps, confidential swaps/withdraws, Intents cross-chain payouts. On the testnet path custody is a vault key held by the worker, there is no confidentiality, testnet tokens are worthless play money, and the thin Ref pool has no arbitrageurs, so chunked selling does **not** beat one swap there (the report states what one swap would have returned: about -1 bp, i.e. the fee). See [docs/CLAIMS.md](docs/CLAIMS.md).
+
+The recorded testnet run is in `data/demo-run/run.json` (also served by the dashboard from `app/public/demo-run/`) and is labelled **recorded** in the UI; the older simulated-fills run is kept as `run-simulated.json`. Recorded mainnet runs do not exist yet.
 
 ## Trust assumptions (read these)
 - The worker is **not** in a TEE in v0: it sees the mandates it executes. Wallet keys are in OutLayer's TDX enclave; AI inference is in NEAR AI's TEE.

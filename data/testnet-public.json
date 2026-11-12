@@ -15,7 +15,10 @@
     "explorer":  {
                      "dao":  "https://explorer.testnet.near.org/accounts/quietdao-83872.sputnikv2.testnet",
                      "mandate":  "https://explorer.testnet.near.org/accounts/qtmandate-83872.testnet",
-                     "agent":  "https://explorer.testnet.near.org/accounts/qtagent-68669.testnet"
+                     "agent":  "https://explorer.testnet.near.org/accounts/qtagent-68669.testnet",
+                     "vault":  "https://explorer.testnet.near.org/accounts/vault.qtagent-68669.testnet"
                  },
-    "note":  "Public testnet ids only. Demo council members are accounts controlled by the authors (not real people)."
+    "note":  "Public testnet ids only. Demo council members are accounts controlled by the authors (not real people).",
+    "vault":  "vault.qtagent-68669.testnet",
+    "dex":  "ref-finance-101.testnet"
 }
