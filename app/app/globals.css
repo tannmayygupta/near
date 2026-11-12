@@ -1,20 +1,20 @@
-:root {
+﻿:root {
   --bg: #f6f7f9; --surface: #ffffff; --surface-2: #eef0f4; --text: #14171f; --muted: #5b6475; --border: #d9dde6;
   --accent: #1a6b4f; --accent-contrast: #ffffff; --danger: #b42318; --warn: #9a6700; --ok: #1a6b4f;
-  --chain: #1a5fb4; --api: #7a3db8; --recorded: #8a5a00;
+  --chain: #1a5fb4; --api: #7a3db8; --recorded: #8a5a00; --simulated: #b42318;
   --radius: 12px; --gutter: 16px;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
     --bg: #0d1117; --surface: #151b23; --surface-2: #1c2430; --text: #e8ecf3; --muted: #9aa5b8; --border: #2a3342;
     --accent: #4cc38a; --accent-contrast: #06150e; --danger: #ff7b72; --warn: #e3b341; --ok: #4cc38a;
-    --chain: #6cb0ff; --api: #c9a2ff; --recorded: #f0b955;
+    --chain: #6cb0ff; --api: #c9a2ff; --recorded: #f0b955; --simulated: #ff8a80;
   }
 }
 :root[data-theme='dark'] {
   --bg: #0d1117; --surface: #151b23; --surface-2: #1c2430; --text: #e8ecf3; --muted: #9aa5b8; --border: #2a3342;
   --accent: #4cc38a; --accent-contrast: #06150e; --danger: #ff7b72; --warn: #e3b341; --ok: #4cc38a;
-  --chain: #6cb0ff; --api: #c9a2ff; --recorded: #f0b955;
+  --chain: #6cb0ff; --api: #c9a2ff; --recorded: #f0b955; --simulated: #ff8a80;
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.5 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; }
@@ -44,7 +44,7 @@ button:focus-visible, a:focus-visible, textarea:focus-visible, input:focus-visib
 textarea, input[type=text] { width: 100%; font: inherit; color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 10px; }
 textarea { min-height: 110px; resize: vertical; }
 .tag { display: inline-block; font-size: 11px; line-height: 1; padding: 3px 6px; border-radius: 999px; border: 1px solid currentColor; margin-left: 6px; vertical-align: middle; font-weight: 600; }
-.tag.chain { color: var(--chain); } .tag.api { color: var(--api); } .tag.recorded { color: var(--recorded); }
+.tag.chain { color: var(--chain); } .tag.api { color: var(--api); } .tag.recorded { color: var(--recorded); } .tag.simulated { color: var(--simulated); font-weight: 700; border: 1px solid currentColor; }
 .state { border: 1px dashed var(--border); border-radius: var(--radius); padding: 16px; color: var(--muted); margin: 12px 0; }
 .state.error { border-color: var(--danger); color: var(--danger); }
 .state.loading { animation: pulse 1.4s ease-in-out infinite; }
@@ -56,3 +56,4 @@ textarea { min-height: 110px; resize: vertical; }
 .split { display: grid; gap: 12px; grid-template-columns: 1fr 1fr; } @media (max-width: 720px) { .split { grid-template-columns: 1fr; } h1 { font-size: 22px; } }
 pre { background: var(--surface-2); padding: 12px; border-radius: 10px; overflow: auto; font-size: 12.5px; margin: 8px 0; }
 .sr { position: absolute; left: -9999px; }
+

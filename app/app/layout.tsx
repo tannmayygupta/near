@@ -1,4 +1,4 @@
-import type { Metadata, Viewport } from 'next';
+﻿import type { Metadata, Viewport } from 'next';
 import type { ReactNode } from 'react';
 import './globals.css';
 import { Nav } from '@/components/nav';
@@ -18,10 +18,11 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           <Nav />
           <main className="wrap">{children}</main>
           <footer className="wrap" style={{ color: 'var(--muted)', fontSize: 13 }}>
-            Tags next to numbers show their source: <span className="tag chain">chain</span> NEAR RPC, <span className="tag api">api</span> worker API, <span className="tag recorded">recorded</span> committed real run. Not investment advice.
+            Tags next to numbers show their source: <span className="tag chain">chain</span> NEAR RPC, <span className="tag api">api</span> worker API, <span className="tag recorded">recorded</span> committed real run, <span className="tag simulated">simulated</span> testnet execution adapter, NOT a real trade. Not investment advice.
           </footer>
         </WalletProvider>
       </body>
     </html>
   );
 }
+

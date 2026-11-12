@@ -1,10 +1,10 @@
-'use client';
+﻿'use client';
 import { download, getLedger, getReport, fmtUnits, toCsv, withRecordedFallback } from '@/lib/data';
 import { PageHead, Src, Stat, useAsync, View } from '@/components/ui';
 import { WithMandate, tokenInfo } from '@/components/mandates';
 import type { OnchainMandate, Report } from '@/lib/types';
 
-function Body({ m, s }: { m: OnchainMandate; s: 'chain' | 'api' | 'recorded' }) {
+function Body({ m, s }: { m: OnchainMandate; s: import('@/lib/types').Source }) {
   const rep = useAsync(() => withRecordedFallback(getReport(m.id), (r) => r.report), [m.id]);
   const led = useAsync(() => withRecordedFallback(getLedger(), (r) => r.ledger), []);
   const sell = tokenInfo(m.sell_token);
@@ -30,7 +30,7 @@ function Body({ m, s }: { m: OnchainMandate; s: 'chain' | 'api' | 'recorded' }) 
               {r.summary ? (
                 <div className="card">
                   <p>{r.summary}</p>
-                  {r.summarySignature && <p className="mono">signed by {r.summarySignature.signingAddress} ({r.summarySignature.signingAlgo}) · {r.summarySignature.signature.slice(0, 40)}…</p>}
+                  {r.summarySignature && <p className="mono">signed by {r.summarySignature.signingAddress} ({r.summarySignature.signingAlgo}) Â· {r.summarySignature.signature.slice(0, 40)}â€¦</p>}
                   <Src s={rs} />
                 </div>
               ) : <div className="state">No AI summary attached to this report.</div>}
@@ -60,3 +60,4 @@ export default function ReportPage() {
     </>
   );
 }
+

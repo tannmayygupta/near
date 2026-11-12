@@ -1,4 +1,4 @@
-// Settlement report builder + CSV export + report hash. Nothing here invents data: inputs are fills/payouts/samples with source tags.
+﻿// Settlement report builder + CSV export + report hash. Nothing here invents data: inputs are fills/payouts/samples with source tags.
 import { BOUNDS, MandateTerms } from './schema';
 import { hashJson } from './hash';
 import { Fill, PriceSample, Source, Tagged, edgeBps, fillPrice, tag, twap, vwap } from './benchmark';
@@ -48,7 +48,7 @@ export interface Report {
 }
 
 const sumStr = (xs: string[]) => xs.reduce((s, x) => s + BigInt(x), 0n).toString();
-const worstSource = (fs: Fill[]): Source => (fs.some((f) => f.source === 'recorded') ? 'recorded' : fs.some((f) => f.source === 'api') ? 'api' : 'chain');
+const worstSource = (fs: Fill[]): Source => (fs.some((f) => f.source === 'simulated') ? 'simulated' : fs.some((f) => f.source === 'recorded') ? 'recorded' : fs.some((f) => f.source === 'api') ? 'api' : 'chain');
 
 export function buildReport(inp: ReportInput): Report {
   const { terms } = inp;
@@ -116,3 +116,4 @@ export function toCsv(r: Report, terms: MandateTerms): string {
   for (const l of r.leftovers) lines.push([l.token, l.amount, l.returnedTo, l.source].map(q).join(','));
   return lines.join('\n') + '\n';
 }
+

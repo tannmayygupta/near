@@ -1,15 +1,15 @@
-'use client';
+﻿'use client';
 import { useEffect, useState, type ReactNode } from 'react';
 import type { Result, Source } from '@/lib/types';
 
 /** Small badge saying where a number came from. Required next to every displayed figure. */
 export function Src({ s }: { s: Source }) {
-  const label = s === 'chain' ? 'chain' : s === 'api' ? 'api' : 'recorded';
+  const label = s === 'simulated' ? 'SIMULATED (not a real trade)' : s;
   return <span className={`tag ${s}`} title={`Source: ${label}`}>{label}</span>;
 }
 
 export function Loading({ what }: { what: string }) {
-  return <div className="state loading" role="status">Loading {what}…</div>;
+  return <div className="state loading" role="status">Loading {what}â€¦</div>;
 }
 export function ErrorState({ what, error }: { what: string; error: string }) {
   return (
@@ -73,3 +73,4 @@ export function useTick(ms: number, enabled: boolean, fn: () => void) {
     return () => clearInterval(t);
   }, [ms, enabled, fn]);
 }
+

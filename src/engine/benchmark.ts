@@ -1,5 +1,5 @@
-// Benchmark math. Every number carries a SOURCE TAG: 'chain' (read from chain/OutLayer result), 'api' (public quote/price API), 'recorded' (replayed from a stored real run).
-export type Source = 'chain' | 'api' | 'recorded';
+﻿// Benchmark math. Every number carries a SOURCE TAG: 'chain' (read from chain/OutLayer result), 'api' (public quote/price API), 'recorded' (replayed from a stored real run), 'simulated' (produced by the testnet execution adapter: NOT a real trade).
+export type Source = 'chain' | 'api' | 'recorded' | 'simulated';
 export interface Tagged<T> { value: T; source: Source }
 export const tag = <T>(value: T, source: Source): Tagged<T> => ({ value, source });
 
@@ -40,3 +40,4 @@ export const edgeBps = (ours: number | null, bench: number | null): number | nul
 /** slippage of one fill vs the quote price immediately before it, in bps (positive = worse than quote) */
 export const slippageBps = (quotedOut: bigint, actualOut: bigint): number =>
   quotedOut === 0n ? 0 : Number(((quotedOut - actualOut) * 10000n) / quotedOut);
+

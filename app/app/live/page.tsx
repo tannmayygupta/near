@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import { useCallback } from 'react';
 import { getBalances, getChunks, fmtUnits, withRecordedFallback } from '@/lib/data';
 import { PageHead, Src, Stat, StatusPill, useAsync, useTick, View } from '@/components/ui';
@@ -6,7 +6,7 @@ import { WithMandate, parseTerms, tokenInfo } from '@/components/mandates';
 import type { OnchainMandate } from '@/lib/types';
 import { BOUNDS } from '@/lib/types';
 
-function Run({ m, s }: { m: OnchainMandate; s: 'chain' | 'api' | 'recorded' }) {
+function Run({ m, s }: { m: OnchainMandate; s: import('@/lib/types').Source }) {
   const chunks = useAsync(() => withRecordedFallback(getChunks(m.id), (r) => r.chunks), [m.id]);
   const bal = useAsync(() => withRecordedFallback(getBalances(), (r) => r.balances), []);
   const refresh = useCallback(() => { chunks.reload(); bal.reload(); }, [chunks, bal]);
@@ -38,9 +38,9 @@ function Run({ m, s }: { m: OnchainMandate; s: 'chain' | 'api' | 'recorded' }) {
                     <td>{fmtUnits(c.sellAmount, sell.decimals)}<Src s={cs} /></td>
                     <td>{c.buyAmount ? fmtUnits(c.buyAmount, 6) : '-'}<Src s={cs} /></td>
                     <td>{c.price ?? '-'}</td><td>{c.benchmarkPrice ?? '-'}</td>
-                    <td>{okFloor === null ? '-' : okFloor ? <span className="pill ok">≥ floor</span> : <span className="pill bad">below floor</span>}</td>
+                    <td>{okFloor === null ? '-' : okFloor ? <span className="pill ok">â‰¥ floor</span> : <span className="pill bad">below floor</span>}</td>
                     <td><StatusPill status={c.status} /></td>
-                    <td className="mono">{c.requestId ? c.requestId.slice(0, 12) + '…' : '-'}</td>
+                    <td className="mono">{c.requestId ? c.requestId.slice(0, 12) + 'â€¦' : '-'}</td>
                   </tr>
                 );
               })}
@@ -51,7 +51,7 @@ function Run({ m, s }: { m: OnchainMandate; s: 'chain' | 'api' | 'recorded' }) {
       <h2>Agent balances</h2>
       <View a={bal} what="balances">
         {(b, bs) => b.length === 0 ? <div className="state">No balances reported.</div> : (
-          <div className="grid">{b.map((x, i) => <Stat key={i} k={`${x.symbol} · ${x.where}`} v={fmtUnits(x.amount, BOUNDS.allowedTokens[x.token]?.decimals ?? 0)} s={bs} />)}</div>
+          <div className="grid">{b.map((x, i) => <Stat key={i} k={`${x.symbol} Â· ${x.where}`} v={fmtUnits(x.amount, BOUNDS.allowedTokens[x.token]?.decimals ?? 0)} s={bs} />)}</div>
         )}
       </View>
       <p style={{ color: 'var(--muted)', fontSize: 13 }}>Auto-refreshes every 10 s while the mandate is funded or executing.</p>
@@ -62,8 +62,9 @@ function Run({ m, s }: { m: OnchainMandate; s: 'chain' | 'api' | 'recorded' }) {
 export default function Live() {
   return (
     <>
-      <PageHead title="Live run" lead="The agent’s progress. Sold amounts and the chunk counter come from the mandate contract; per-chunk fills come from the agent’s receipts." />
+      <PageHead title="Live run" lead="The agentâ€™s progress. Sold amounts and the chunk counter come from the mandate contract; per-chunk fills come from the agentâ€™s receipts." />
       <WithMandate>{(m, s) => <Run m={m} s={s} />}</WithMandate>
     </>
   );
 }
+

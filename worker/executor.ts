@@ -251,7 +251,7 @@ export class Executor {
 
   private fills(id: number): Fill[] {
     return this.d.state.chunks(id).filter((c) => c.status === 'success').map((c) => ({
-      index: c.idx, ts: c.ts, amountIn: c.size, amountOut: c.amount_out ?? '0', requestId: c.request_id ?? '', intentHash: c.intent_hash ?? undefined, source: 'api' as const }));
+      index: c.idx, ts: c.ts, amountIn: c.size, amountOut: c.amount_out ?? '0', requestId: c.request_id ?? '', intentHash: c.intent_hash ?? undefined, source: srcOf(c.request_id) }));
   }
 
   private planItems(m: OnChainMandate, terms: MandateTerms, mode: 'normal' | 'cancel') {
@@ -347,8 +347,8 @@ export class Executor {
     const st = this.d.state;
     const items = st.items(m.id);
     const payouts: PayoutResult[] = items.filter((i) => i.kind === 'payout').map((i) => ({ label: i.label, chain: i.chain, address: i.address, token: i.token, amount: i.amount,
-      status: i.status === 'success' ? 'success' : 'needs_review', requestId: i.request_id ?? undefined, destTxHash: i.dest_tx ?? undefined, source: 'api' as const }));
-    const leftovers: Leftover[] = items.filter((i) => i.kind.startsWith('return')).map((i) => ({ token: i.token, amount: i.amount, returnedTo: i.address, txRef: i.request_id ?? undefined, source: 'api' as const }));
+      status: i.status === 'success' ? 'success' : 'needs_review', requestId: i.request_id ?? undefined, destTxHash: i.dest_tx ?? undefined, source: srcOf(i.request_id) }));
+    const leftovers: Leftover[] = items.filter((i) => i.kind.startsWith('return')).map((i) => ({ token: i.token, amount: i.amount, returnedTo: i.address, txRef: i.request_id ?? undefined, source: srcOf(i.request_id) }));
     const fee = items.find((i) => i.kind === 'fee');
     const samples: PriceSample[] = st.samples(m.id).map((s) => ({ ts: s.ts, price: s.price, origin: s.origin, source: s.source }));
     const input = { mandateId: m.id, terms, fills: this.fills(m.id), samples, payouts, feeAmount: fee && fee.status === 'success' ? fee.amount : '0', feeSource: 'api' as const,
@@ -360,9 +360,13 @@ export class Executor {
   }
 }
 
+/** Receipts produced by the testnet simulated adapter carry request ids prefixed sim-; they must never be presented as real fills. */
+const srcOf = (requestId: string | null | undefined): 'api' | 'simulated' => (String(requestId ?? '').startsWith('sim-') ? 'simulated' : 'api');
+
 function firstTx(result: Record<string, any> | undefined): string | null {
   const h = result?.swap_details?.destinationChainTxHashes;
   return Array.isArray(h) && h.length ? String(h[0]) : null;
 }
 export { canonicalJson };
+
 

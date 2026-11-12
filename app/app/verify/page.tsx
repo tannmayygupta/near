@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import { useState } from 'react';
 import { getVerifyChecks, sha256Hex, withRecordedFallback } from '@/lib/data';
 import { PageHead, Src, useAsync, View } from '@/components/ui';
@@ -8,7 +8,7 @@ import { canonical } from '@/lib/canon';
 
 const MODEL = 'z-ai/glm-5.3-flash';
 
-function Checks({ list, s }: { list: VerifyCheck[]; s: 'api' | 'recorded' | 'chain' }) {
+function Checks({ list, s }: { list: VerifyCheck[]; s: import('@/lib/types').Source }) {
   if (!list.length) return <div className="state">The worker returned no checks.</div>;
   return (
     <div className="card"><table><thead><tr><th>Check</th><th>Result</th><th>Detail</th></tr></thead><tbody>
@@ -35,13 +35,13 @@ function LiveAttestation() {
       setOut({
         ok: echoed && !!g.intel_quote && !!m.intel_quote,
         lines: [
-          `fresh nonce sent: ${nonce.slice(0, 16)}…`,
+          `fresh nonce sent: ${nonce.slice(0, 16)}â€¦`,
           `nonce echoed by gateway: ${echoed}`,
           `gateway signer: ${g.signing_address ?? '-'}`,
           `gateway Intel TDX quote present: ${!!g.intel_quote} (${(g.intel_quote ?? '').length} hex chars)`,
           `model signer: ${m.signing_address ?? '-'}`,
-          `model Intel TDX quote present: ${!!m.intel_quote} · NVIDIA GPU payload present: ${!!m.nvidia_payload}`,
-          'Scope: this checks nonce freshness and presence of hardware evidence. Full quote verification is done by the worker (DCAP) or NEAR’s verifier: https://cloud.near.ai/verify',
+          `model Intel TDX quote present: ${!!m.intel_quote} Â· NVIDIA GPU payload present: ${!!m.nvidia_payload}`,
+          'Scope: this checks nonce freshness and presence of hardware evidence. Full quote verification is done by the worker (DCAP) or NEARâ€™s verifier: https://cloud.near.ai/verify',
         ],
       });
     } catch (e) {
@@ -51,7 +51,7 @@ function LiveAttestation() {
   }
   return (
     <div className="card">
-      <div className="row"><button className="primary" onClick={run} disabled={busy}>{busy ? 'Checking…' : 'Run live attestation check'}</button><Src s="api" /><span className="mono">{MODEL}</span></div>
+      <div className="row"><button className="primary" onClick={run} disabled={busy}>{busy ? 'Checkingâ€¦' : 'Run live attestation check'}</button><Src s="api" /><span className="mono">{MODEL}</span></div>
       {out && <><div style={{ marginTop: 8 }}>{out.ok ? <span className="pill ok">pass</span> : <span className="pill bad">not verified</span>}</div><pre>{out.lines.join('\n')}</pre></>}
     </div>
   );
@@ -65,13 +65,13 @@ function HashCheck({ m }: { m: OnchainMandate }) {
     try { h = await sha256Hex(canonical(JSON.parse(text))); } catch { return setRes('Input is not valid JSON.'); }
     const asIs = await sha256Hex(text.trim());
     const hit = h === m.terms_hash ? 'canonical JSON' : asIs === m.terms_hash ? 'raw text' : null;
-    setRes(hit ? `MATCH (${hit}) · ${m.terms_hash}` : `NO MATCH · computed ${h} · on-chain ${m.terms_hash}`);
+    setRes(hit ? `MATCH (${hit}) Â· ${m.terms_hash}` : `NO MATCH Â· computed ${h} Â· on-chain ${m.terms_hash}`);
   }
   return (
     <div className="card">
       <p style={{ marginTop: 0 }}>Paste revealed mandate terms (JSON). We compute SHA-256 of the canonical form and compare with the commitment stored on-chain <Src s="chain" />.</p>
       <label htmlFor="terms" className="sr">Revealed terms JSON</label>
-      <textarea id="terms" value={text} onChange={(e) => setText(e.target.value)} placeholder='{"dao":"…"}' />
+      <textarea id="terms" value={text} onChange={(e) => setText(e.target.value)} placeholder='{"dao":"â€¦"}' />
       <div className="row" style={{ marginTop: 8 }}>
         <button className="primary" onClick={run} disabled={!text.trim()}>Check commitment</button>
         {m.revealed_terms && <button onClick={() => setText(m.revealed_terms ?? '')}>Load revealed terms from chain</button>}
@@ -81,7 +81,7 @@ function HashCheck({ m }: { m: OnchainMandate }) {
   );
 }
 
-function Body({ m, s }: { m: OnchainMandate; s: 'chain' | 'api' | 'recorded' }) {
+function Body({ m, s }: { m: OnchainMandate; s: import('@/lib/types').Source }) {
   const checks = useAsync(() => withRecordedFallback(getVerifyChecks(m.id), (r) => r.checks), [m.id]);
   return (
     <>
@@ -103,3 +103,4 @@ export default function Verify() {
     </>
   );
 }
+

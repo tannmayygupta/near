@@ -1,4 +1,4 @@
-// Minimal mirror of src/engine/schema.ts (keep in sync). Amounts are integer strings in smallest units.
+﻿// Minimal mirror of src/engine/schema.ts (keep in sync). Amounts are integer strings in smallest units.
 import { z } from 'zod';
 
 export const CHAINS = ['near', 'solana', 'base', 'arbitrum', 'ethereum'] as const;
@@ -75,7 +75,7 @@ export function boundIssues(m: MandateTerms): string[] {
 }
 
 // ---- data shapes returned by the worker read-only API / contract views ----
-export type Source = 'chain' | 'api' | 'recorded';
+export type Source = 'chain' | 'api' | 'recorded' | 'simulated';
 export type Result<T> = { ok: true; data: T; source: Source } | { ok: false; error: string };
 
 export type OnchainMandate = {
@@ -152,3 +152,4 @@ export type VerifyCheck = { name: string; ok: boolean; detail: string };
 export type RedteamResult = { attack: string; blocked: boolean; layer: string; status: number | null; error: string; requestId: string | null };
 export type Balances = { token: string; symbol: string; amount: string; where: 'wallet' | 'intents' | 'confidential' | 'dao' }[];
 export type ParseResult = { terms: MandateTerms; summary: string; attestation?: { signer: string; nonceEchoed: boolean } };
+

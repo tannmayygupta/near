@@ -1,5 +1,5 @@
-// Thin NEAR chain helpers shared by scripts, worker and tests. Network = RPC url; no network-specific code elsewhere.
-import { Account, JsonRpcProvider, KeyPairSigner } from 'near-api-js';
+﻿// Thin NEAR chain helpers shared by scripts, worker and tests. Network = RPC url; no network-specific code elsewhere.
+import { Account, JsonRpcProvider, KeyPairSigner, getTransactionLastResult } from 'near-api-js';
 
 export const RPC = {
   sandbox: process.env.SANDBOX_RPC ?? 'http://localhost:3030',
@@ -25,3 +25,9 @@ export const NEAR = (n: number | string) => {
   const [i, f = ''] = String(n).split('.');
   return BigInt(i) * 10n ** 24n + BigInt((f + '0'.repeat(24)).slice(0, 24));
 };
+
+/** Function call that also returns the transaction hash (for explorer links in recorded runs). Additive helper. */
+export async function callTx(acc: Account, contractId: string, methodName: string, args: object, gas: bigint, deposit: bigint = 0n): Promise<{ value: unknown; txHash: string }> {
+  const o: any = await acc.callFunctionRaw({ contractId, methodName, args, gas, deposit });
+  return { value: getTransactionLastResult(o), txHash: o.transaction?.hash ?? o.transaction_outcome?.id ?? '' };
+}

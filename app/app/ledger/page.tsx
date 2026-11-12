@@ -1,10 +1,10 @@
-'use client';
+﻿'use client';
 import { useMemo, useState } from 'react';
 import { download, getLedger, toCsv, withRecordedFallback } from '@/lib/data';
 import { PageHead, Src, useAsync, View } from '@/components/ui';
 import type { LedgerRow } from '@/lib/types';
 
-function Table({ rows, s }: { rows: LedgerRow[]; s: 'api' | 'recorded' | 'chain' }) {
+function Table({ rows, s }: { rows: LedgerRow[]; s: import('@/lib/types').Source }) {
   const [kind, setKind] = useState('all');
   const shown = useMemo(() => rows.filter((r) => kind === 'all' || r.kind === kind), [rows, kind]);
   const kinds = ['all', ...new Set(rows.map((r) => r.kind))];
@@ -37,3 +37,4 @@ export default function Ledger() {
     </>
   );
 }
+
