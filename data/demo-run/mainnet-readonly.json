@@ -1,0 +1,246 @@
+{
+  "recordedAt": "2026-11-12T14:33:03.000Z",
+  "mode": "dry-run quotes only, no funds moved",
+  "source": "api",
+  "endpoint": "https://1click.chaindefuser.com/v0/quote (dry: true)",
+  "sampleMandate": {
+    "sellAmount": "5000000000000000000000000",
+    "treasuryAccount": "36842e2f73d0b7b2f2af6e0d94a7a997398c2c09d9cf09ca3fa23b5426fccf88",
+    "payouts": [
+      {
+        "label": "alice",
+        "chain": "solana",
+        "address": "9xQeWvG816bUx9EPjHmaT23yvVM2ZWbrrpZb9PusVFin",
+        "percent": 25
+      },
+      {
+        "label": "bob",
+        "chain": "base",
+        "address": "0x1111111111111111111111111111111111111111",
+        "percent": 25
+      },
+      {
+        "label": "carol",
+        "chain": "arbitrum",
+        "address": "0x2222222222222222222222222222222222222222",
+        "percent": 20
+      },
+      {
+        "label": "dave",
+        "chain": "ethereum",
+        "address": "0x3333333333333333333333333333333333333333",
+        "percent": 15
+      },
+      {
+        "label": "erin",
+        "chain": "near",
+        "address": "contributor.near",
+        "percent": 15
+      }
+    ]
+  },
+  "legs": [
+    {
+      "id": "sell",
+      "kind": "sell",
+      "label": "Sell wNEAR for USDC (NEAR)",
+      "from": {
+        "asset": "nep141:wrap.near",
+        "symbol": "wNEAR",
+        "chain": "near"
+      },
+      "to": {
+        "asset": "nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1",
+        "symbol": "USDC",
+        "chain": "near"
+      },
+      "amountIn": "5000000000000000000000000",
+      "recipient": "36842e2f73d0b7b2f2af6e0d94a7a997398c2c09d9cf09ca3fa23b5426fccf88",
+      "refundTo": "36842e2f73d0b7b2f2af6e0d94a7a997398c2c09d9cf09ca3fa23b5426fccf88",
+      "needsSwap": true,
+      "source": "api",
+      "quote": {
+        "amountIn": "5000000000000000000000000",
+        "amountInFormatted": "5.0",
+        "amountInUsd": "16.750000000000",
+        "minAmountIn": "5000000000000000000000000",
+        "amountOut": "16785139",
+        "amountOutFormatted": "16.785139",
+        "amountOutUsd": "16.750000000000",
+        "minAmountOut": "16617287",
+        "timeEstimateS": 22,
+        "refundFee": "0",
+        "withdrawFee": "4190",
+        "fetchedAtS": 1794493979,
+        "source": "api"
+      }
+    },
+    {
+      "id": "payout-0",
+      "kind": "payout",
+      "label": "Pay alice on solana",
+      "from": {
+        "asset": "nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1",
+        "symbol": "USDC",
+        "chain": "near"
+      },
+      "to": {
+        "asset": "nep141:sol-5ce3bf3a31af18be40ba30f721101b4341690186.omft.near",
+        "symbol": "USDC",
+        "chain": "solana"
+      },
+      "amountIn": "4196284",
+      "recipient": "9xQeWvG816bUx9EPjHmaT23yvVM2ZWbrrpZb9PusVFin",
+      "refundTo": "36842e2f73d0b7b2f2af6e0d94a7a997398c2c09d9cf09ca3fa23b5426fccf88",
+      "needsSwap": true,
+      "source": "api",
+      "quote": {
+        "amountIn": "4196284",
+        "amountInFormatted": "4.196284",
+        "amountInUsd": "4.194353709360",
+        "minAmountIn": "4196284",
+        "amountOut": "4185815",
+        "amountOutFormatted": "4.185815",
+        "amountOutUsd": "4.183889525100",
+        "minAmountOut": "4143956",
+        "timeEstimateS": 17,
+        "refundFee": "4190",
+        "withdrawFee": "9975",
+        "fetchedAtS": 1794493980,
+        "source": "api"
+      }
+    },
+    {
+      "id": "payout-1",
+      "kind": "payout",
+      "label": "Pay bob on base",
+      "from": {
+        "asset": "nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1",
+        "symbol": "USDC",
+        "chain": "near"
+      },
+      "to": {
+        "asset": "nep141:base-0x833589fcd6edb6e08f4c7c32d4f71b54bda02913.omft.near",
+        "symbol": "USDC",
+        "chain": "base"
+      },
+      "amountIn": "4196284",
+      "recipient": "0x1111111111111111111111111111111111111111",
+      "refundTo": "36842e2f73d0b7b2f2af6e0d94a7a997398c2c09d9cf09ca3fa23b5426fccf88",
+      "needsSwap": true,
+      "source": "api",
+      "quote": {
+        "amountIn": "4196284",
+        "amountInFormatted": "4.196284",
+        "amountInUsd": "4.194353709360",
+        "minAmountIn": "4196284",
+        "amountOut": "4193034",
+        "amountOutFormatted": "4.193034",
+        "amountOutUsd": "4.191105204360",
+        "minAmountOut": "4151103",
+        "timeEstimateS": 22,
+        "refundFee": "4190",
+        "withdrawFee": "2400",
+        "fetchedAtS": 1794493981,
+        "source": "api"
+      }
+    },
+    {
+      "id": "payout-2",
+      "kind": "payout",
+      "label": "Pay carol on arbitrum",
+      "from": {
+        "asset": "nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1",
+        "symbol": "USDC",
+        "chain": "near"
+      },
+      "to": {
+        "asset": "nep141:arb-0xaf88d065e77c8cc2239327c5edb3a432268e5831.omft.near",
+        "symbol": "USDC",
+        "chain": "arbitrum"
+      },
+      "amountIn": "3357027",
+      "recipient": "0x2222222222222222222222222222222222222222",
+      "refundTo": "36842e2f73d0b7b2f2af6e0d94a7a997398c2c09d9cf09ca3fa23b5426fccf88",
+      "needsSwap": true,
+      "source": "api",
+      "quote": {
+        "amountIn": "3357027",
+        "amountInFormatted": "3.357027",
+        "amountInUsd": "3.355482767580",
+        "minAmountIn": "3357027",
+        "amountOut": "3351331",
+        "amountOutFormatted": "3.351331",
+        "amountOutUsd": "3.349789387740",
+        "minAmountOut": "3317817",
+        "timeEstimateS": 19,
+        "refundFee": "4190",
+        "withdrawFee": "5300",
+        "fetchedAtS": 1794493982,
+        "source": "api"
+      }
+    },
+    {
+      "id": "payout-3",
+      "kind": "payout",
+      "label": "Pay dave on ethereum",
+      "from": {
+        "asset": "nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1",
+        "symbol": "USDC",
+        "chain": "near"
+      },
+      "to": {
+        "asset": "nep141:eth-0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48.omft.near",
+        "symbol": "USDC",
+        "chain": "ethereum"
+      },
+      "amountIn": "2517770",
+      "recipient": "0x3333333333333333333333333333333333333333",
+      "refundTo": "36842e2f73d0b7b2f2af6e0d94a7a997398c2c09d9cf09ca3fa23b5426fccf88",
+      "needsSwap": true,
+      "source": "api",
+      "quote": {
+        "amountIn": "2517770",
+        "amountInFormatted": "2.51777",
+        "amountInUsd": "2.516611825800",
+        "minAmountIn": "2517770",
+        "amountOut": "2217472",
+        "amountOutFormatted": "2.217472",
+        "amountOutUsd": "2.216451962880",
+        "minAmountOut": "2195297",
+        "timeEstimateS": 27,
+        "refundFee": "4190",
+        "withdrawFee": "300000",
+        "fetchedAtS": 1794493983,
+        "source": "api"
+      }
+    },
+    {
+      "id": "payout-4",
+      "kind": "payout",
+      "label": "Pay erin on near",
+      "from": {
+        "asset": "nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1",
+        "symbol": "USDC",
+        "chain": "near"
+      },
+      "to": {
+        "asset": "nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1",
+        "symbol": "USDC",
+        "chain": "near"
+      },
+      "amountIn": "2517770",
+      "recipient": "contributor.near",
+      "refundTo": "36842e2f73d0b7b2f2af6e0d94a7a997398c2c09d9cf09ca3fa23b5426fccf88",
+      "needsSwap": false,
+      "source": "api",
+      "skipped": "USDC already on NEAR: a plain Intents withdraw, no swap to quote"
+    }
+  ],
+  "summary": {
+    "quoted": 5,
+    "errors": 0,
+    "skipped": 1
+  },
+  "honesty": "These are live 1Click DRY quotes on NEAR mainnet liquidity. Nothing was deposited, swapped or withdrawn. Executing these routes (NEAR Intents / OutLayer custody / confidential swaps) is implemented but NOT proven with real money. A dry quote is not a fill: real prices can differ at execution time."
+}

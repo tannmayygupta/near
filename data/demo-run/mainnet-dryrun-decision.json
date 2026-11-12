@@ -1,0 +1,58 @@
+{
+  "recordedAt": "2026-11-12T14:37:12.532Z",
+  "mode": "live-dryrun: real 1Click dry quotes, money-moving calls blocked, nothing sent, no chain writes",
+  "source": "api",
+  "decisions": [
+    {
+      "label": "floor below market (would swap)",
+      "floorPrice": "2.5",
+      "plan": {
+        "kind": "chunk",
+        "size": "1869752883911132812500000",
+        "delayAfterS": 1082
+      },
+      "quote": {
+        "amount_out": "6345376",
+        "min_amount_out": "6281922",
+        "time_estimate_seconds": 20,
+        "hint": "1Click public DRY quote (no OutLayer key used in live-dryrun)"
+      },
+      "minAmountOut": "4674383",
+      "floorOk": true,
+      "wouldSend": {
+        "method": "POST",
+        "url": "https://api.outlayer.ai/wallet/v1/confidential/swap",
+        "headers": {
+          "authorization": "Bearer wk_***",
+          "content-type": "application/json",
+          "x-idempotency-key": "sample:0"
+        },
+        "body": {
+          "token_in": "nep141:wrap.near",
+          "token_out": "nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1",
+          "amount_in": "1869752883911132812500000",
+          "min_amount_out": "4674383"
+        }
+      },
+      "note": "floor OK: the live executor would send this request (blocked in live-dryrun)"
+    },
+    {
+      "label": "floor above market (would refuse)",
+      "floorPrice": "9.0",
+      "plan": {
+        "kind": "chunk",
+        "size": "1855157852172851562500000",
+        "delayAfterS": 1130
+      },
+      "quote": {
+        "amount_out": "6295524",
+        "min_amount_out": "6232568",
+        "time_estimate_seconds": 20,
+        "hint": "1Click public DRY quote (no OutLayer key used in live-dryrun)"
+      },
+      "minAmountOut": "16696421",
+      "floorOk": false,
+      "note": "quote is below the mandate price floor: the live executor would NOT swap this chunk"
+    }
+  ]
+}

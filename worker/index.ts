@@ -5,6 +5,7 @@ import { RPC, accountFor, Net } from '../src/near/chain';
 import { OutLayerClient, OUTLAYER_MAINNET } from '../src/near/outlayer';
 import { SimulatedOutLayer } from './adapters/simulated-outlayer';
 import { RefTestnetAdapter } from './adapters/ref-testnet';
+import { LiveDryRunOutLayer, dryRunDecision } from './adapters/live-dryrun';
 import { createSummarizer } from './summarizer';
 import { OutLayerWallet, layerAVerdict } from '../src/near/outlayer-policy';
 import { NearAiClient } from '../src/near/ai';
@@ -33,7 +34,10 @@ const ref = execMode === 'testnet-real' ? new RefTestnetAdapter({
   reserveYocto: BigInt(process.env.VAULT_RESERVE_YOCTO ?? '2000000000000000000000000'), ledgerPath: process.env.REF_LEDGER ?? 'data/ref-ledger.json', log: (k, f) => console.log(JSON.stringify({ t: new Date().toISOString(), kind: `ref_${k}`, ...f })),
   refPrice: async () => { try { const [w, u] = Object.keys(MAINNET_TOKENS); const q = await dryQuote({ originAsset: w, destinationAsset: u, amount: (10n ** 23n).toString(), recipient: need('SIM_QUOTE_RECIPIENT'), refundTo: need('SIM_QUOTE_RECIPIENT') }); return (Number(BigInt(q.amountOut)) / 1e6) / 0.1; } catch { return null; } },
 }) : null;
-const outlayer: OutLayerPort = ref ? ref : execMode === 'simulated'
+// 'live-dryrun': the live Intents/OutLayer DECISION path (real 1Click dry quotes + planner + price floor) with every money-moving call blocked and no chain writes; see worker/adapters/live-dryrun.ts
+const outlayer: OutLayerPort = ref ? ref : execMode === 'live-dryrun'
+  ? new LiveDryRunOutLayer({ recipient: process.env.DRYRUN_RECIPIENT ?? '36842e2f73d0b7b2f2af6e0d94a7a997398c2c09d9cf09ca3fa23b5426fccf88' })
+  : execMode === 'simulated'
   ? new SimulatedOutLayer({ recipient: need('SIM_QUOTE_RECIPIENT') })
   : new OutLayerClient({ baseUrl: process.env.OUTLAYER_BASE_URL ?? OUTLAYER_MAINNET, apiKey: need('OUTLAYER_WK') });
 if (execMode === 'simulated') console.warn(JSON.stringify({ level: 'warn', msg: 'EXEC_MODE=simulated: fills are SIMULATED and tagged so; this is not real trading' }));
@@ -42,6 +46,7 @@ const chain = new RealChain({ rpc, mandateContract, dao, agent });
 const clock: Clock = { nowS: () => Math.floor(Date.now() / 1000), sleep: (ms) => new Promise((r) => setTimeout(r, ms)) };
 
 let lastTick = 0, ticking = false;
+const lastDry: Record<number, unknown> = {}; // live-dryrun: latest decision per mandate (also served in /health)
 const ai = process.env.NEAR_AI_API_KEY ? new NearAiClient() : null;
 
 const exec = new Executor({
@@ -78,7 +83,7 @@ const api = createApi({
     const r = await parseIntent(intent, { dao, treasurer: 'unknown.near', nowS: clock.nowS(), llm: llmFromClient(ai, process.env.PARSE_MODEL ?? 'Qwen/Qwen3.8-27B') }); // confidential TEE model; measured 21s/1 attempt vs glm-5.3-flash 6-170s (erratic reasoning time)
     return { terms: r.terms, summary: r.summary.join('\n') };
   } : undefined,
-  health: () => ({ lastTick, ticking, net, dao, mandateContract, needsHuman: state.db.prepare("SELECT mandate_id, key, note FROM items WHERE status='needs_review'").all() }),
+  health: () => ({ lastTick, ticking, net, dao, mandateContract, execMode, ...(execMode === 'live-dryrun' ? { dryRun: lastDry } : {}), needsHuman: state.db.prepare("SELECT mandate_id, key, note FROM items WHERE status='needs_review'").all() }),
 });
 
 const server = await api.listen(Number(process.env.PORT ?? 8787));
@@ -102,6 +107,19 @@ if (process.env.SOCIAL_PUBLISH === '1') {
   });
 }
 
+// live-dryrun tick: decide what the live executor WOULD do for each approved mandate; sends nothing, writes nothing on chain
+async function dryRunTick() {
+  const ad = outlayer as LiveDryRunOutLayer;
+  for (const m of await chain.listMandates()) {
+    if (!['Approved', 'Funded', 'Executing'].includes(m.status)) continue;
+    const terms = await termsFor(state, m);
+    if (!terms) { log('dryrun_skip', { mandate: m.id, reason: 'terms unavailable (sealed and not delivered?)' }); continue; }
+    const d = await dryRunDecision(terms, { adapter: ad, nowS: clock.nowS(), remaining: BigInt(m.max_sell) - BigInt(m.sold), idem: `${m.id}:${m.chunks}` });
+    lastDry[m.id] = { at: clock.nowS(), ...d, plan: { ...d.plan, size: 'size' in d.plan ? d.plan.size.toString() : undefined } };
+    log('dryrun_decision', { mandate: m.id, note: d.note, floorOk: d.floorOk, minAmountOut: d.minAmountOut, quotedOut: d.quote?.amount_out, wouldSend: d.wouldSend });
+  }
+}
+
 let stop = false;
 const tickMs = Number(process.env.TICK_MS ?? 5000);
 (async () => {
@@ -112,7 +130,8 @@ const tickMs = Number(process.env.TICK_MS ?? 5000);
         const sim = outlayer as SimulatedOutLayer;
         for (const mm of await chain.listMandates()) if (mm.status === 'Approved' && !(sim as any)._funded?.has(mm.id)) { ((sim as any)._funded ??= new Set()).add(mm.id); sim.fund(mm.sell_token, BigInt(mm.max_sell)); log('simulated_funding', { mandate: mm.id }); }
       }
-      await exec.tick(); lastTick = clock.nowS();
+      if (execMode === 'live-dryrun') await dryRunTick(); else await exec.tick();
+      lastTick = clock.nowS();
       if (social) await social.tick().catch((e) => log('social_error', { message: (e as Error).message }));
     } catch (e) { log('tick_error', { message: (e as Error).message }); }
     ticking = false;

@@ -6,7 +6,7 @@ import { ENV } from '@/lib/data';
 
 const LINKS = [
   ['/', 'DAO'], ['/wizard', 'New mandate'], ['/votes', 'Votes'], ['/reputation', 'Reputation'], ['/live', 'Live run'], ['/copycat', 'Copycat view'],
-  ['/redteam', 'Red team'], ['/report', 'Report'], ['/sealed', 'Sealed'], ['/verify', 'Verify'], ['/ledger', 'Ledger'],
+  ['/redteam', 'Red team'], ['/report', 'Report'], ['/routes', 'Routes'], ['/sealed', 'Sealed'], ['/verify', 'Verify'], ['/ledger', 'Ledger'],
 ] as const;
 
 export function Nav() {

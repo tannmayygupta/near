@@ -70,3 +70,14 @@ The previous run (`run-simulated.json`, `proof-bundle-simulated.json`) used `EXE
 | Sealed terms hidden FROM THE OPERATOR / hidden TRADES | **NOT PROVEN** | the worker is not in a TEE and decrypts the terms to execute; swaps and payouts are public testnet txs; confidential trades are mainnet-only (see `docs/SEALED.md`) |
 
 Fills from the `testnet-real` adapter are tagged `chain` (request id = a real NEAR transaction hash); the older simulated run's numbers are tagged `simulated` in the report, the CSV, the API and the dashboard and must never be quoted as real trades. Testnet tokens (wNEAR on Ref, USDT.e "fakes") have no monetary value, and the Ref testnet pool is thin with no arbitrageurs, so prices there say nothing about the mainnet product.
+
+## DeFi evidence (read-only mainnet + live-dryrun; no funds moved) - added 2026-11-12
+| Claim | Status | Evidence |
+|---|---|---|
+| Cross-chain Intents routes for a mandate quote live on mainnet liquidity: sell wNEAR -> USDC (NEAR) and USDC (NEAR) -> USDC on Solana / Base / Arbitrum / Ethereum (5 of 5 quoted, 0 errors, 1 plain-withdraw leg) | QUOTED (1Click `dry:true`, source `api`; a quote is not a fill) | `npx tsx scripts/mainnet/readonly-proof.ts`, `data/demo-run/mainnet-readonly.json`, dashboard `/routes` |
+| 1Click answers HTTP 400 "Internal server error" for a wNEAR-origin quote with a NAMED NEAR refund/recipient account and HTTP 201 with an implicit 64-hex account (the account type an OutLayer wallet has) | VERIFIED (probe, 2026-11-12) | `docs/DEFI.md`, comment in `scripts/mainnet/readonly-proof.ts` |
+| The live executor decision path (plan chunk -> real quote -> mandate price floor -> exact OutLayer request) runs against mainnet liquidity with every money-moving call blocked and no chain writes (`EXEC_MODE=live-dryrun`) | VERIFIED (real quotes, nothing sent): floor below market -> would swap (blocked); floor above market -> would refuse | `worker/adapters/live-dryrun.ts`, `npx tsx scripts/mainnet/dryrun-decision.ts`, `data/demo-run/mainnet-dryrun-decision.json` |
+| The live-dryrun path never calls a money-moving endpoint; the credential never appears in logs | VERIFIED (unit tests) | `tests/routes.test.ts` |
+| OutLayer client request shapes (paths, bodies, Authorization, `X-Idempotency-Key` on every money-moving call, `async:true` cross-chain withdraw) match OutLayer's reference docs | VERIFIED (contract-shape unit tests; no network) | `tests/routes.test.ts`; `intentsWithdraw` gained the documented `async` flag |
+| OutLayer MAINNET confidential quotes re-run in this lane | NOT RUN (no OutLayer mainnet key on disk; the lane may not register wallets) | an earlier read-only confidential swap quote exists (2026-11-11), see above |
+| A real Intents / OutLayer / confidential swap or cross-chain withdraw settles with real money | **UNVERIFIED** | needs mainnet funds |

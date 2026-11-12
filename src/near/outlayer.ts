@@ -80,7 +80,8 @@ export class OutLayerClient {
   // ---- public intents (fallback path B2) ----
   intentsSwapQuote(b: { token_in: string; token_out: string; amount_in: string }) { return this.call<QuotePreview>('POST', '/wallet/v1/intents/swap/quote', b); }
   intentsSwap(b: { token_in: string; token_out: string; amount_in: string; min_amount_out?: string }, idem: string | true = true) { return this.call<ActionResponse>('POST', '/wallet/v1/intents/swap', b, { idem }); }
-  intentsWithdraw(b: { chain?: string; to: string; amount: string; token?: string }, idem: string | true = true) { return this.call<ActionResponse>('POST', '/wallet/v1/intents/withdraw', b, { idem }); }
+  /** docs (intents-withdraw.md): cross-chain withdrawals should use `async: true` (returns `processing` + poll_url) */
+  intentsWithdraw(b: { chain?: string; to: string; amount: string; token?: string; async?: boolean }, idem: string | true = true) { return this.call<ActionResponse>('POST', '/wallet/v1/intents/withdraw', b, { idem }); }
 
   request(id: string) { return this.call<RequestRecord>('GET', `/wallet/v1/requests/${encodeURIComponent(id)}`); }
 
