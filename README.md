@@ -1,7 +1,7 @@
 ﻿# Quiet Treasury
 
 **A DAO votes once on a plain-English mandate. A sealed-chip agent executes it privately inside hard limits, pays out, returns the leftovers, and publishes a verifiable settlement report.**
-Built for NEAR HACKATHON 2026 (Social Money, Autonomous Business, Privacy & Private AI, Real-World Money, AI Security & Defense, Unstoppable DeFi, Open Innovation). Status of every claim: see [docs/CLAIMS.md](docs/CLAIMS.md). Plan: [PLAN.md](PLAN.md).
+Built for NEAR HACKATHON 2026. **Tracks claimed today: Social Money, Autonomous Business, AI Security & Defense.** Other tracks are added only after their end-to-end scenario passes (final list is set on 14 Nov; see [docs/submission.md](docs/submission.md)). Status of every claim: [docs/CLAIMS.md](docs/CLAIMS.md). Plan: [PLAN.md](PLAN.md). Docs: [architecture](docs/ARCHITECTURE.md), [runbook](docs/RUNBOOK.md), [deploy](docs/DEPLOY.md).
 
 ## The problem
 DAOs and foundations regularly sell their own token to fund operations. Public, lumpy sales move the price and get front-run, and the vote itself telegraphs the trade. Quiet Treasury lets a DAO approve *what* may be sold (token, budget, price floor, window, payouts) and nothing else; an agent does the rest without the ability to exceed it.
@@ -55,6 +55,9 @@ The recorded testnet run is in `data/demo-run/run.json` (also served by the dash
 - The DAO's funding transfer to the agent is public on chain (mitigation: routine "operations float" top-ups).
 - Wallet-policy owner is a single account in v0 (production: the DAO).
 - TEEs rely on Intel/NVIDIA hardware trust. Nothing here is audited. **Not investment advice**; demo funds are the authors' own.
+
+## Other projects by our team (hackathon rule: each README names the others; independent, no shared code)
+PLACEHOLDER - names and repo links of the teammates' projects (see docs/TEAM-KIT.md) once their repos are public.
 
 ## Libraries and templates
 near-api-js, zod, @noble/curves, @noble/hashes, vitest, tsx, near-sdk (Rust), Next.js, @near-wallet-selector. Sputnik DAO v2 contract (near-daos/sputnik-dao-contract) is used unmodified. Everything else was written during the hackathon window.

@@ -123,7 +123,7 @@ Recording tips: do not click Approve/Reject on open proposals; do not show `.env
 
 ## 6. Length limits (measured 2026-11-12)
 - `idea` text: **1827** characters (limit 20-2000). Re-measure after any edit: nearhackathon.com returns 400 above 2000.
-- X main post: about 276 characters without a link (limit 280); the reply is about 263.
+- X main post: 278 characters without a link (limit 280; links count about 24 more, so keep the repo link in the reply); the reply is 263.
 - Loops tagline: 85 characters.
 
 ## 7. Repo publishing (user action; nothing was pushed or created)
