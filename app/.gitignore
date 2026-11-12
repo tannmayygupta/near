@@ -1,0 +1,3 @@
+
+# keep the public (non-secret) testnet example
+!.env.testnet.example
