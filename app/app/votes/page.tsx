@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { ENV, getDaoPolicy, getMandates, getProposals, getTrust } from '@/lib/data';
 import { PageHead, Src, StatusPill, useAsync, View } from '@/components/ui';
 import { TIER_RULES } from '@/components/mandates';
+import { Acct } from '@/components/acct';
 import { useWallet } from '@/components/wallet';
 import type { DaoProposal } from '@/lib/types';
 
@@ -27,7 +28,7 @@ function Treasurers() {
     <View a={a} what="treasurer trust scores">
       {(rows, s) => rows.length === 0 ? <div className="state">No treasurers yet.</div> : (
         <div className="card"><table><thead><tr><th>Treasurer</th><th>Mandates settled with zero violations</th></tr></thead><tbody>
-          {rows.map((r) => <tr key={r.n}><td className="mono">{r.n}</td><td>{r.t}<Src s={s} /></td></tr>)}
+          {rows.map((r) => <tr key={r.n}><td><Acct id={r.n} role="treasurer" /></td><td>{r.t}<Src s={s} /></td></tr>)}
         </tbody></table></div>
       )}
     </View>

@@ -1,6 +1,7 @@
 'use client';
 import { ENV, getBalances, getDaoPolicy, withRecordedFallback } from '@/lib/data';
 import { PageHead, Src, Stat, useAsync, View } from '@/components/ui';
+import { Acct } from '@/components/acct';
 import { MandateTable, loadMandates, TIER_RULES } from '@/components/mandates';
 import { BOUNDS, type Balances } from '@/lib/types';
 import { fmtUnits } from '@/lib/data';
@@ -13,7 +14,7 @@ function Config() {
     <div className="card">
       <table><tbody>
         {rows.map(([k, v]) => (
-          <tr key={k}><td>{k}</td><td className="mono">{v || <span className="pill bad">not configured</span>}</td></tr>
+          <tr key={k}><td>{k}</td><td>{!v ? <span className="pill bad">not configured</span> : k === 'Worker API' ? <span className="mono">{v}</span> : <Acct id={v} role={k === 'DAO account' ? 'sputnik dao' : k === 'Agent wallet' ? 'agent' : 'contract'} />}</td></tr>
         ))}
         <tr><td>Network</td><td><span className="pill">{ENV.network}</span></td></tr>
       </tbody></table>

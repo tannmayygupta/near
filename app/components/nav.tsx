@@ -5,7 +5,7 @@ import { WalletButton } from './wallet';
 import { ENV } from '@/lib/data';
 
 const LINKS = [
-  ['/', 'DAO'], ['/wizard', 'New mandate'], ['/votes', 'Votes'], ['/live', 'Live run'], ['/copycat', 'Copycat view'],
+  ['/', 'DAO'], ['/wizard', 'New mandate'], ['/votes', 'Votes'], ['/reputation', 'Reputation'], ['/live', 'Live run'], ['/copycat', 'Copycat view'],
   ['/redteam', 'Red team'], ['/report', 'Report'], ['/verify', 'Verify'], ['/ledger', 'Ledger'],
 ] as const;
 
