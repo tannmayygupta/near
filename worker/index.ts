@@ -75,6 +75,24 @@ const api = createApi({
 const server = await api.listen(Number(process.env.PORT ?? 8787));
 log('listening', { port: process.env.PORT ?? 8787, net });
 
+// near.social publishing (FastData KV): SOCIAL_PUBLISH=1 SOCIAL_ACCOUNT_ID / SOCIAL_ACCOUNT_KEY (default: the agent account)
+let social: import('./social-publisher').SocialPublisher | undefined;
+if (process.env.SOCIAL_PUBLISH === '1') {
+  const { SocialPublisher, nearblocksAnchorFinder } = await import('./social-publisher');
+  const { senderFor } = await import('../src/near/social');
+  const { providerFor } = await import('../src/near/chain');
+  const acct = process.env.SOCIAL_ACCOUNT_ID ? accountFor(rpc, process.env.SOCIAL_ACCOUNT_ID, need('SOCIAL_ACCOUNT_KEY')) : agent;
+  const prov = providerFor(rpc);
+  social = new SocialPublisher({
+    net: net === 'mainnet' ? 'mainnet' : 'testnet', account: acct.accountId, dao, contract: mandateContract, chain, send: senderFor(acct), db: state.db, log,
+    explorerAccount: (a) => (net === 'mainnet' ? `https://nearblocks.io/address/${a}` : `https://explorer.testnet.near.org/accounts/${a}`),
+    findAnchorTx: nearblocksAnchorFinder({
+      api: net === 'mainnet' ? 'https://api.nearblocks.io' : 'https://api-testnet.nearblocks.io', rpc, contract: mandateContract,
+      decode: async (h, signer) => { const o: any = await prov.viewTransactionStatus({ txHash: h, accountId: signer, waitUntil: 'EXECUTED' } as any); const fc = o.transaction?.actions?.[0]?.FunctionCall; return fc ? { args: JSON.parse(Buffer.from(fc.args, 'base64').toString()) } : null; },
+    }),
+  });
+}
+
 let stop = false;
 const tickMs = Number(process.env.TICK_MS ?? 5000);
 (async () => {
@@ -86,6 +104,7 @@ const tickMs = Number(process.env.TICK_MS ?? 5000);
         for (const mm of await chain.listMandates()) if (mm.status === 'Approved' && !(sim as any)._funded?.has(mm.id)) { ((sim as any)._funded ??= new Set()).add(mm.id); sim.fund(mm.sell_token, BigInt(mm.max_sell)); log('simulated_funding', { mandate: mm.id }); }
       }
       await exec.tick(); lastTick = clock.nowS();
+      if (social) await social.tick().catch((e) => log('social_error', { message: (e as Error).message }));
     } catch (e) { log('tick_error', { message: (e as Error).message }); }
     ticking = false;
     await clock.sleep(tickMs);

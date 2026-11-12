@@ -1,0 +1,134 @@
+{
+  "posts": [
+    {
+      "key": "profile",
+      "kvTx": "FFkFQzrGcjiRmDM2kkfiaejvDYqPs1bTaHjnEm3yfCLF",
+      "explorer": "https://explorer.testnet.near.org/transactions/FFkFQzrGcjiRmDM2kkfiaejvDYqPs1bTaHjnEm3yfCLF",
+      "ts": 1794471981,
+      "detail": {}
+    },
+    {
+      "key": "announce:1",
+      "kvTx": "FPanNfDZXjzLoy7biozmxF7JQTpPsf3LYCzbzKjDwQY8",
+      "explorer": "https://explorer.testnet.near.org/transactions/FPanNfDZXjzLoy7biozmxF7JQTpPsf3LYCzbzKjDwQY8",
+      "ts": 1794471984,
+      "detail": {
+        "mandate": 1
+      }
+    },
+    {
+      "key": "complete:1",
+      "kvTx": "8LezDj5hkZE2WgfJUGLBvtqqo1RYYrCaRWy3WFfMqkLx",
+      "explorer": "https://explorer.testnet.near.org/transactions/8LezDj5hkZE2WgfJUGLBvtqqo1RYYrCaRWy3WFfMqkLx",
+      "ts": 1794471989,
+      "detail": {
+        "mandate": 1,
+        "reportHash": "48e4a69ee9c9ea15ebe176d33900abbedb7324b84a12c4010022956c5e4bb6e2",
+        "anchorTx": "HbFGNPyhAemHLaHRbWXc9CcSvWh4DXRpyNn6y2xsYPdf"
+      }
+    },
+    {
+      "key": "announce:4",
+      "kvTx": "5RNYUGJdCxGqDCt3KftnvHwsYMm8zrWvr3imyFCWAf6r",
+      "explorer": "https://explorer.testnet.near.org/transactions/5RNYUGJdCxGqDCt3KftnvHwsYMm8zrWvr3imyFCWAf6r",
+      "ts": 1794471991,
+      "detail": {
+        "mandate": 4
+      }
+    },
+    {
+      "key": "complete:4",
+      "kvTx": "HsTfPa5VZChedPSJcAdGgTCnHUh4RVKw1kCpo5oqtMqf",
+      "explorer": "https://explorer.testnet.near.org/transactions/HsTfPa5VZChedPSJcAdGgTCnHUh4RVKw1kCpo5oqtMqf",
+      "ts": 1794471995,
+      "detail": {
+        "mandate": 4,
+        "reportHash": "7aa398d661321fd231e854250a8194de8499ccfde00434d500c9533f6d3b7563",
+        "anchorTx": "26fJ5YYtsH25i3uKr5R3NNcfb19S4U9mUWxPehT9dcbw"
+      }
+    },
+    {
+      "key": "announce:5",
+      "kvTx": "NyZ5uiy2zxD167uTgxSaS6uRbm8rqvNgvMAw6D2gXhq",
+      "explorer": "https://explorer.testnet.near.org/transactions/NyZ5uiy2zxD167uTgxSaS6uRbm8rqvNgvMAw6D2gXhq",
+      "ts": 1794471997,
+      "detail": {
+        "mandate": 5
+      }
+    },
+    {
+      "key": "complete:5",
+      "kvTx": "Eec9z9HE9UTiWDgU21rPFJpqvLrNr51z2VSJ9JgaicPV",
+      "explorer": "https://explorer.testnet.near.org/transactions/Eec9z9HE9UTiWDgU21rPFJpqvLrNr51z2VSJ9JgaicPV",
+      "ts": 1794472002,
+      "detail": {
+        "mandate": 5,
+        "reportHash": "f8246867e412e3b1c26181acfab96b014b973bea220e95165416eceec2a69981",
+        "anchorTx": "4rYhdKuKhcQ5nS7mwxmJFJcNUG64xPs4sz9sLjQEm8mK"
+      }
+    },
+    {
+      "key": "reputation:qttreasurer-83872.testnet:3:3",
+      "kvTx": "5BQCoH4Eu4CmoZoM74uUjWTppMLsrFDy67bNwPACHaJu",
+      "explorer": "https://explorer.testnet.near.org/transactions/5BQCoH4Eu4CmoZoM74uUjWTppMLsrFDy67bNwPACHaJu",
+      "ts": 1794472006,
+      "detail": {
+        "treasurer": "qttreasurer-83872.testnet",
+        "settled": 3,
+        "mandates": [
+          1,
+          4,
+          5
+        ]
+      }
+    }
+  ],
+  "daoPost": {
+    "network": "testnet",
+    "recordedAt": "2026-11-12T08:25:53.705Z",
+    "dao": "quietdao-83872.sputnikv2.testnet",
+    "socialReceiver": "social.testnet",
+    "proposal": {
+      "id": 11,
+      "status": "Failed",
+      "createdTx": "9Z3Tef3hXnuDSLoMwwWEHdCZgygwDiCzDqQHtDtGQ3c5",
+      "createdExplorer": "https://explorer.testnet.near.org/transactions/9Z3Tef3hXnuDSLoMwwWEHdCZgygwDiCzDqQHtDtGQ3c5",
+      "votes": [
+        {
+          "by": "qtc1-68669.testnet",
+          "tx": "n6DNLCiS2VkEjJ3Ywz1VjS8wFocSRvzZU4WB1kkTZx5",
+          "explorer": "https://explorer.testnet.near.org/transactions/n6DNLCiS2VkEjJ3Ywz1VjS8wFocSRvzZU4WB1kkTZx5"
+        },
+        {
+          "by": "qtc2-68669.testnet",
+          "tx": "DU8aA53auFMwGYZdHq4a6VrmJC2pXffZiccxoniZDiZe",
+          "explorer": "https://explorer.testnet.near.org/transactions/DU8aA53auFMwGYZdHq4a6VrmJC2pXffZiccxoniZDiZe"
+        }
+      ]
+    },
+    "post": {
+      "key": "post/1700000000007005",
+      "predecessor": "quietdao-83872.sputnikv2.testnet",
+      "text": "#QuietTreasury - DAO quietdao-83872.sputnikv2.testnet announces (by council vote) that mandate #5 was settled and its report hash is anchored on-chain.\nVerify: contract qtmandate-83872.testnet get_mandate 5. The agent can only act inside DAO-approved mandates. #NEARHackathon",
+      "fastdata": {
+        "predecessor_id": "quietdao-83872.sputnikv2.testnet",
+        "current_account_id": "social.testnet",
+        "block_height": 277337883,
+        "block_timestamp": 1794471949373243400,
+        "key": "post/1700000000007005",
+        "value": {
+          "text": "#QuietTreasury - DAO quietdao-83872.sputnikv2.testnet announces (by council vote) that mandate #5 was settled and its report hash is anchored on-chain.\nVerify: contract qtmandate-83872.testnet get_mandate 5. The agent can only act inside DAO-approved mandates. #NEARHackathon"
+        }
+      },
+      "readUrl": "https://kv.test.fastnear.com/v0/latest/social.testnet/quietdao-83872.sputnikv2.testnet",
+      "nearSocialUrl": "https://near.social/quietdao-83872.sputnikv2.testnet/post/1700000000007005"
+    },
+    "note": "Governance-driven near.social write: DAO account is the predecessor. Proposal status Failed is expected (receipt CodeDoesNotExist); evidence is the FastData entry."
+  },
+  "network": "testnet",
+  "publisher": "qtagent-68669.testnet",
+  "socialReceiver": "social.testnet",
+  "reputationNamespace": "quiettreasury/v1/reputation",
+  "readUrl": "https://kv.test.fastnear.com/v0/latest/social.testnet/qtagent-68669.testnet",
+  "fastdataKeys": []
+}
