@@ -13,3 +13,4 @@ data/tunnel.pids
 .agents/
 *.log
 .vercel/
+*.tsbuildinfo

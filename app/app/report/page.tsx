@@ -1,7 +1,8 @@
 'use client';
-import { download, getLedgerFor, getReportFor, fmtPrice, fmtUnits, humanizeText, toCsv } from '@/lib/data';
+import { download, factTag, getLedgerFor, getReportFor, fmtPrice, fmtUnits, humanizeText, toCsv } from '@/lib/data';
 import { PageHead, Src, Stat, useAsync, View } from '@/components/ui';
 import { WithMandate, parseTerms, tokenInfo } from '@/components/mandates';
+import { RealRunPanel, RunTxList, WhatIsReal } from '@/components/real';
 import type { OnchainMandate, Report, Source } from '@/lib/types';
 
 function Body({ m, s }: { m: OnchainMandate; s: Source }) {
@@ -49,18 +50,22 @@ function ReportBody({ m, r, rs, s, sell, buy }: { m: OnchainMandate; r: Report; 
   // slippage may be missing in the stored report; derive it from the two prices shown (sell side: higher than benchmark is better)
   const bps = r.slippageBps ?? (avg !== null && bench ? Math.round(((avg - bench) / bench) * 10000) : null);
   const bpsLabel = bps === null ? '-' : `${bps >= 0 ? '+' : ''}${bps} bps ${bps >= 0 ? 'better' : 'worse'} than benchmark`;
+  const fs = factTag(rs); // sums of real on-chain swaps/payouts are chain facts when the committed run is a testnet-real run; the benchmark is an API quote
   return (
     <>
       <div className="grid">
-        <Stat k={`Sold (${sell.symbol})`} v={fmtUnits(r.totalSold, sell.decimals)} s={rs} />
-        <Stat k={`Received (${buy.symbol})`} v={fmtUnits(r.totalBought, buy.decimals)} s={rs} />
-        <Stat k={`Average price (${buy.symbol} per ${sell.symbol})`} v={fmtPrice(r.avgPrice)} s={rs} />
-        <Stat k={`Benchmark (${r.benchmarkSource})`} v={fmtPrice(r.benchmarkPrice)} s={rs} />
+        <Stat k={`Sold (${sell.symbol})`} v={fmtUnits(r.totalSold, sell.decimals)} s={fs} />
+        <Stat k={`Received (${buy.symbol})`} v={fmtUnits(r.totalBought, buy.decimals)} s={fs} />
+        <Stat k={`Average price (${buy.symbol} per ${sell.symbol})`} v={fmtPrice(r.avgPrice)} s={fs} />
+        <Stat k={`Benchmark (${r.benchmarkSource})`} v={fmtPrice(r.benchmarkPrice)} s={r.benchmarkSource.includes('pool') ? fs : 'api'} />
         <Stat k="Versus benchmark" v={bpsLabel} s={rs} />
-        <Stat k={`Fees paid (${buy.symbol})`} v={fmtUnits(r.feesPaid, buy.decimals)} s={rs} />
-        <Stat k={`Returned to DAO (${buy.symbol})`} v={fmtUnits(r.returned, buy.decimals)} s={rs} />
+        <Stat k={`Fees paid (${buy.symbol})`} v={fmtUnits(r.feesPaid, buy.decimals)} s={fs} />
+        <Stat k={`Returned to DAO (${buy.symbol})`} v={fmtUnits(r.returned, buy.decimals)} s={fs} />
         <Stat k="Policy violations" v={r.violations} s={rs} />
       </div>
+      <p style={{ color: 'var(--muted)', fontSize: 13 }}>{r.benchmarkSource.includes('pool')
+        ? 'The benchmark is the Ref pool’s own spot price read from the chain before each chunk. Selling into a thin pool moves its price, so the realised average sits below that spot benchmark: this is price impact (a measure of the pool’s depth), not a performance claim. The like-for-like comparison is the chunked vs one-shot table below.'
+        : 'The benchmark is an external reference quote, not the pool used for execution.'}</p>
       {r.slippageBps === null && bps !== null && <p style={{ color: 'var(--muted)', fontSize: 13 }}>The stored report has no slippage field, so the comparison above is computed here from the two prices shown.</p>}
       <h2>AI summary</h2>
       {r.summary ? (
@@ -79,7 +84,10 @@ function ReportBody({ m, r, rs, s, sell, buy }: { m: OnchainMandate; r: Report; 
         <div>Report hash in report <span className="mono">{r.reportHash ?? '-'}</span><Src s={rs} /></div>
         <div>Report hash on mandate contract <span className="mono">{anchored ?? 'not anchored yet'}</span><Src s={s} /></div>
         <div style={{ marginTop: 6 }}>{match === null ? <span className="pill warn">cannot compare yet</span> : match ? <span className="pill ok">hashes match</span> : <span className="pill bad">hash MISMATCH</span>}</div>
+        <RunTxList match={/complete #|begin_settlement/} caption="Settlement and anchor transactions" />
       </div>
+      <RealRunPanel mandateId={m.id} />
+      <WhatIsReal />
     </>
   );
 }

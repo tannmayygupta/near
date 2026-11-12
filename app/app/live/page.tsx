@@ -1,8 +1,9 @@
 'use client';
 import { useCallback } from 'react';
-import { getBalances, getChunksFor, getRecordedFor, fmtPrice, fmtUnits, withRecordedFallback } from '@/lib/data';
+import { getBalances, getChunksFor, getRealRun, getRecordedFor, fmtPrice, fmtUnits, looksLikeTxHash, withRecordedFallback } from '@/lib/data';
 import { PageHead, Src, Stat, StatusPill, useAsync, useTick, View } from '@/components/ui';
 import { WithMandate, parseTerms, tokenInfo } from '@/components/mandates';
+import { RealRunPanel, RunTxRange, TxLink, VaultBalances, WhatIsReal } from '@/components/real';
 import type { OnchainMandate, Source } from '@/lib/types';
 import { BOUNDS } from '@/lib/types';
 
@@ -23,6 +24,7 @@ function CancelRecord({ id }: { id: number }) {
             ))}</tbody>
           </table>
         )}
+        <RunTxRange from={/create_mandate #2/} caption="Every transaction of this cancelled run (proposals, votes, swaps, real returns)" />
       </div>
     </>
   );
@@ -31,6 +33,8 @@ function CancelRecord({ id }: { id: number }) {
 function Run({ m, s }: { m: OnchainMandate; s: Source }) {
   const chunks = useAsync(() => getChunksFor(m.id), [m.id]);
   const bal = useAsync(() => withRecordedFallback(getBalances(), (r) => r.balances), []);
+  const run = useAsync(getRealRun, []); // present only when the committed run is a testnet-real run: then the vault's balances are read from the chain
+  const vault = !run.loading && run.result.ok ? run.result.data.real.vault.accountId : null;
   const refresh = useCallback(() => { chunks.reload(); bal.reload(); }, [chunks, bal]);
   useTick(10000, m.status === 'Executing' || m.status === 'Funded', refresh);
   const sell = tokenInfo(m.sell_token);
@@ -69,7 +73,7 @@ function Run({ m, s }: { m: OnchainMandate; s: Source }) {
                     <td>{fmtPrice(c.price)}</td><td>{fmtPrice(c.benchmarkPrice)}</td>
                     <td>{okFloor === null ? '-' : okFloor ? <span className="pill ok">≥ floor</span> : <span className="pill bad">below floor</span>}</td>
                     <td><StatusPill status={c.status} /></td>
-                    <td className="mono">{c.requestId ? c.requestId.slice(0, 12) + '…' : '-'}</td>
+                    <td>{c.requestId ? (looksLikeTxHash(c.requestId) ? <TxLink hash={c.requestId} /> : <span className="mono">{c.requestId.slice(0, 12)}…{c.requestId.startsWith('sim-') && <> <Src s="simulated" /></>}</span>) : '-'}</td>
                   </tr>
                 );
               })}
@@ -77,13 +81,17 @@ function Run({ m, s }: { m: OnchainMandate; s: Source }) {
           </table></div>
         )}
       </View>
+      <RealRunPanel mandateId={m.id} part="payouts" />
       <CancelRecord id={m.id} />
-      <h2>Agent balances</h2>
-      <View a={bal} what="balances">
-        {(b, bs) => b.length === 0 ? <div className="state">No balances reported.</div> : (
-          <div className="grid">{b.map((x, i) => <Stat key={i} k={`${x.symbol} · ${x.where}`} v={fmtUnits(x.amount, BOUNDS.allowedTokens[x.token]?.decimals ?? 0)} s={bs} />)}</div>
-        )}
-      </View>
+      <h2>{vault ? 'Vault balances (read from the chain)' : 'Agent balances'}</h2>
+      {vault ? <VaultBalances vault={vault} /> : (
+        <View a={bal} what="balances">
+          {(b, bs) => b.length === 0 ? <div className="state">No balances reported.</div> : (
+            <div className="grid">{b.map((x, i) => <Stat key={i} k={`${x.symbol} · ${x.where}`} v={fmtUnits(x.amount, BOUNDS.allowedTokens[x.token]?.decimals ?? 0)} s={bs} />)}</div>
+          )}
+        </View>
+      )}
+      <WhatIsReal />
       <p style={{ color: 'var(--muted)', fontSize: 13 }}>Auto-refreshes every 10 s while the mandate is funded or executing.</p>
     </>
   );

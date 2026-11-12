@@ -4,6 +4,7 @@ import { ENV, getDaoPolicy, getMandates, getProposals, getTrust } from '@/lib/da
 import { PageHead, Src, StatusPill, useAsync, View } from '@/components/ui';
 import { TIER_RULES } from '@/components/mandates';
 import { Acct } from '@/components/acct';
+import { RunTxList } from '@/components/real';
 import { useWallet } from '@/components/wallet';
 import type { DaoProposal } from '@/lib/types';
 
@@ -81,6 +82,7 @@ export default function Votes() {
           </table></div>
         )}
       </View>
+      <RunTxList match={/proposal|vote/i} caption="Real proposal and vote transactions (recorded run, incl. the funding Transfer and the cancel)" />
       <h2>Approval tiers <span className="tag chain">design</span></h2>
       <div className="card"><table><tbody>
         {Object.entries(TIER_RULES).map(([k, v]) => <tr key={k}><td>{k}</td><td>{v}</td></tr>)}

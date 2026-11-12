@@ -2,6 +2,20 @@
 
 Legend: **VERIFIED-TESTNET** = reproduced on PUBLIC NEAR testnet by a command in this repo (explorer links in `data/demo-run/run.json`) | VERIFIED = reproduced by a command/test here | LOCAL = local sandbox only | **SIMULATED** = produced by the testnet execution adapter, NOT a real trade | UNVERIFIED = not proven live
 
+## Tracks claimed (and why) - decided on the evidence below
+| Track | Claimed | Evidence | Deliberately NOT claimed |
+|---|---|---|---|
+| Social Money (main) | yes | real Sputnik proposals/votes/funding Transfer/cancel; near.social posts + DAO-voted post; reputation on the contract mirrored to named accounts; dashboard checked in a real browser (`data/demo-run/run.json`, `data/testnet-social.json`) | wallet-signed proposal creation from the wizard (no human wallet in the test) |
+| Autonomous Business | yes | 29/29 run: no human action after the funding vote until the anchored report; real fee/payouts/returns; DAO-cancel kill switch with real return of funds | restart survival in the testnet run (unit tests only) |
+| AI Security & Defense | yes | 6 attacks blocked, layer A real 403 `policy_denied` + layer B contract/executor; verifier 13/13 | Layer A on confidential endpoints (mainnet-only) |
+| Privacy & Private AI | yes, scoped | NEAR AI TEE parsing + summary, signed + attested, verifier 13/13, live attestation check | **hidden/confidential execution** (mainnet-only, unproven; copycat page says so) |
+| Real-World Money | yes, scoped | real USDT.e payouts + fee + returns to named accounts, balances checked on-chain, CSV with tx links | **cross-chain payouts** via Intents (mainnet-only, unproven) |
+| Unstoppable DeFi | **no** | swaps are real but on a NEAR testnet DEX (Ref), not Intents; weak evidence + team overlap | - |
+| Open Innovation | **no** | sealed-mandate reveal not demonstrated in the run; team overlap | - |
+
+### MAINNET-ONLY AND UNPROVEN (read this first)
+Confidential swaps / hidden trades; OutLayer TEE custody doing the swaps (testnet uses a worker-held vault key); Intents cross-chain payouts (Solana/Base); the DAO funding an agent's Intents balance. Each is implemented behind the `live` execution mode but has **never run with real money**. Testnet tokens have no value. Chunked vs one-shot on the thin testnet pool: about -1.8 bp, i.e. **no price gain is claimed**.
+
 ## What is real in the CURRENT recorded run: `EXEC_MODE=testnet-real` (`npx tsx --env-file=.env scripts/testnet/e2e-real.ts`, 29/29)
 Recorded 2026-11-12 on PUBLIC NEAR testnet; every row has a transaction hash in `data/demo-run/run.json` (`txs`, `real`) and on https://explorer.testnet.near.org.
 | Part | Status |

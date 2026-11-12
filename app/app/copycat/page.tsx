@@ -1,6 +1,22 @@
 'use client';
-import { ENV, getChunks, getPublicTxns, viewAccountExists, withRecordedFallback } from '@/lib/data';
+import { ENV, getChunks, getPublicTxns, getRealRun, viewAccountExists, withRecordedFallback } from '@/lib/data';
 import { PageHead, Src, Stat, useAsync, View } from '@/components/ui';
+import { TxLink } from '@/components/real';
+
+/** On testnet nothing is hidden: say so, and show the public swaps a copycat can read. The hidden-trades design is mainnet-only and unproven. */
+function TestnetScope() {
+  const run = useAsync(getRealRun, []);
+  if (run.loading || !run.result.ok) return null;
+  const { real } = run.result.data;
+  return (
+    <div className="card" role="note">
+      <strong>Honest scope of this run.</strong> On testnet there is no confidential execution: the {real.swaps.length} swaps below are public Ref Finance transactions signed by the vault <span className="mono">{real.vault.accountId}</span>, so a copycat <em>can</em> read them. The hidden-trades design (confidential shard, checked on the left) is mainnet-only and <strong>not proven</strong> by this run.
+      <div className="row" style={{ marginTop: 8, flexWrap: 'wrap' }}>
+        {real.swaps.map((s) => <TxLink key={s.tx} hash={s.tx} label={`swap ${s.index} ${s.tx.slice(0, 6)}…`} />)}
+      </div>
+    </div>
+  );
+}
 
 export default function Copycat() {
   const shard = useAsync(() => viewAccountExists('intents.far', 'mainnet'), []);
@@ -9,6 +25,7 @@ export default function Copycat() {
   return (
     <>
       <PageHead title="Copycat view" lead="What a public observer can learn about the sale, next to what the agent actually did. Privacy here means: no public trace of the trades inside the confidential shard. Entry and exit transfers are public." />
+      <TestnetScope />
       <div className="split">
         <section>
           <h2>What the public sees</h2>

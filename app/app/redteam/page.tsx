@@ -1,6 +1,6 @@
 'use client';
-import { useState } from 'react';
-import { runRedteam } from '@/lib/data';
+import { useEffect, useState } from 'react';
+import { getRecordedRun, runRedteam } from '@/lib/data';
 import { ErrorState, PageHead, Src } from '@/components/ui';
 import type { RedteamResult } from '@/lib/types';
 
@@ -23,6 +23,16 @@ export default function RedTeam() {
   const [res, setRes] = useState<Record<string, RedteamResult | { error: string }>>({});
   const [busy, setBusy] = useState<string | null>(null);
   const [mid, setMid] = useState('');
+  // Default the target to the mandate of the committed run (its terms are public and known); otherwise the worker attacks the latest mandate, whose terms may be unavailable (sealed / other worker).
+  const [rec, setRec] = useState<Record<string, RedteamResult>>({});
+  useEffect(() => {
+    getRecordedRun().then((r) => {
+      if (!r.ok) return;
+      if (r.data.mandate) setMid((cur) => (cur === '' ? String(r.data.mandate!.id) : cur));
+      const list = (r.data as unknown as { redteam?: RedteamResult[] }).redteam ?? [];
+      setRec(Object.fromEntries(list.map((x) => [x.attack, x])));
+    });
+  }, []);
 
   async function go(id: string) {
     setBusy(id);
@@ -62,6 +72,18 @@ export default function RedTeam() {
                 </div>
               );
             })())}
+            {rec[a.id] && (
+              <div style={{ marginTop: 10, borderTop: '1px solid var(--border, #8884)', paddingTop: 8 }}>
+                <div className="row">
+                  <strong>Recorded result (committed testnet run)</strong>
+                  {rec[a.id].blocked ? <span className="pill ok">BLOCKED</span> : <span className="pill bad">NOT BLOCKED</span>}
+                  {layerLetter(rec[a.id].layer) && <span className={`pill ${layerLetter(rec[a.id].layer) === 'A' ? 'ok' : 'warn'}`}>Layer {layerLetter(rec[a.id].layer)}</span>}
+                  <span>{rec[a.id].layer}</span><Src s="recorded" />
+                </div>
+                <pre>{(rec[a.id].error || '(no error text)').slice(0, 400)}</pre>
+                <div style={{ color: 'var(--muted)', fontSize: 13 }}>Live attacks need an executable (funded, running) mandate; when none exists the live button says NOT RUN and this recorded result is the evidence.</div>
+              </div>
+            )}
           </div>
         );
       })}

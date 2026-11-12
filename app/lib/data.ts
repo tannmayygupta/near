@@ -131,8 +131,18 @@ export async function getPublicTxns(account: string, network = ENV.network): Pro
 }
 
 // ---------- (c) recorded run (committed, REAL, labelled "recorded") ----------
+export type RunTx = { label: string; txHash: string; explorer?: string };
+export type RealRun = {
+  vault: { accountId: string; explorer?: string };
+  pool: { before: { poolId: number; tokenIn: string; tokenOut: string; reserveIn: string; reserveOut: string; feeBps: number; ts: number; source: string }; dex: string };
+  swaps: { index: number; tx: string; explorer: string; in: string; out: string }[];
+  payouts: { kind: string; label: string; to: string; token: string; amount: string; status: string; tx: string; explorer: string }[];
+  balanceDeltas: Record<string, string>;
+  oneShot: { amountOut: string; poolId: number; reserveIn: string; reserveOut: string; feeBps: number; snapshotTs: number; chunkedVsOneShotBps: number; source: string };
+};
 export type RecordedRun = {
   recordedAt: string; note: string;
+  mode?: string; network?: string; ids?: Record<string, string>; real?: RealRun; txs?: RunTx[];
   mandate?: OnchainMandate; chunks?: Chunk[]; ledger?: LedgerRow[]; report?: Report; checks?: VerifyCheck[]; balances?: Balances;
   cancelRun?: { mandate?: OnchainMandate; items?: { key?: string; kind?: string; status?: string; token?: string; amount?: string; to?: string; note?: string }[] };
   verifier?: { ok: boolean; checks: { name: string; ok: boolean; detail?: string }[] };
@@ -148,7 +158,7 @@ export async function getRecordedFor(id: number): Promise<Result<RecordedMandate
   if (!rec.ok) return rec as Result<never>;
   const r = rec.data;
   if (r.mandate?.id === id) return ok({ kind: 'completed', mandate: r.mandate, chunks: r.chunks ?? [], ledger: r.ledger ?? [], report: r.report, checks: r.checks ?? [], verifier: r.verifier, items: [] }, 'recorded');
-  if (r.cancelRun?.mandate?.id === id) return ok({ kind: 'cancelled', mandate: r.cancelRun.mandate, chunks: [], ledger: [], checks: [], items: r.cancelRun.items ?? [] }, 'recorded');
+  if (r.cancelRun?.mandate?.id === id) return ok({ kind: 'cancelled', mandate: r.cancelRun.mandate, chunks: [], ledger: [], checks: [], items: r.cancelRun.items ?? [] }, factTag('recorded'));
   return fail(`The recorded run does not cover mandate #${id}.`);
 }
 
@@ -157,7 +167,7 @@ export async function getChunksFor(id: number): Promise<Result<Chunk[]>> {
   const live = await getChunks(id);
   if (live.ok && live.data.length > 0) return live;
   const rec = await getRecordedFor(id);
-  if (rec.ok && rec.data.chunks.length > 0) return ok(rec.data.chunks, 'recorded');
+  if (rec.ok && rec.data.chunks.length > 0) return ok(rec.data.chunks, factTag('recorded'));
   return live.ok ? live : fail(live.error);
 }
 
@@ -186,7 +196,7 @@ export async function getLedgerFor(id: number): Promise<Result<LedgerRow[]>> {
   const run = await getRecordedRun();
   if (run.ok && run.data.ledger?.length) {
     const o = own(run.data.ledger, run.data.mandate?.id === id);
-    if (o.length) return ok(o, 'recorded');
+    if (o.length) return ok(o, factTag('recorded'));
   }
   return ok([], 'chain'); // empty is a valid answer (e.g. cancelled mandate); the UI explains it
 }
@@ -196,7 +206,7 @@ export async function getLedgerAll(): Promise<Result<LedgerRow[]>> {
   const live = await getLedger();
   if (live.ok && live.data.length > 0) return live;
   const rec = await getRecordedRun();
-  if (rec.ok && (rec.data.ledger?.length ?? 0) > 0) return ok(rec.data.ledger!, 'recorded');
+  if (rec.ok && (rec.data.ledger?.length ?? 0) > 0) return ok(rec.data.ledger!, factTag('recorded'));
   return live.ok ? ok([], 'api') : fail(live.error);
 }
 
@@ -221,9 +231,48 @@ export async function getVerifyFor(m: OnchainMandate): Promise<Result<VerifyView
     verifier: rec.ok ? rec.data.verifier ?? null : null,
   }, 'api');
 }
+let runMode: string | null = null;
 export async function getRecordedRun(): Promise<Result<RecordedRun>> {
   const r = await getJson<RecordedRun>('/demo-run/run.json');
+  if (r.ok) runMode = r.data.mode ?? null;
   return r.ok ? ok(r.data, 'recorded') : fail('No recorded run committed yet (app/public/demo-run/run.json). It is produced by the real end-to-end run.');
+}
+
+/** The committed run is provenance ("recorded"), but in a testnet-real run its swaps/payouts/returns are real on-chain facts with tx hashes: tag those 'chain'. */
+export const factTag = (s: Source): Source => (s === 'recorded' && runMode === 'testnet-real' ? 'chain' : s);
+
+/** The committed testnet-real run (null result if the run on disk is a different mode). */
+export async function getRealRun(): Promise<Result<RecordedRun & { real: RealRun; txs: RunTx[] }>> {
+  const rec = await getRecordedRun();
+  if (!rec.ok) return rec as Result<never>;
+  if (rec.data.mode !== 'testnet-real' || !rec.data.real) return fail('The committed recorded run is not a testnet-real run.');
+  return ok(rec.data as RecordedRun & { real: RealRun; txs: RunTx[] }, 'recorded');
+}
+
+// ---------- explorer links ----------
+export const explorerTx = (hash: string, network = ENV.network) =>
+  network === 'mainnet' ? `https://nearblocks.io/txns/${hash}` : `https://explorer.testnet.near.org/transactions/${hash}`;
+export const explorerAcct = (id: string, network = ENV.network) =>
+  network === 'mainnet' ? `https://nearblocks.io/address/${id}` : `https://explorer.testnet.near.org/accounts/${id}`;
+export const looksLikeTxHash = (s?: string | null) => !!s && /^[1-9A-HJ-NP-Za-km-z]{43,44}$/.test(s);
+
+// ---------- vault balances read straight from the chain (testnet-real run) ----------
+export type VaultBalance = { symbol: string; amount: string; decimals: number };
+export async function getVaultBalances(vault: string): Promise<Result<VaultBalance[]>> {
+  const out: VaultBalance[] = [];
+  const acct = await getJson<{ result?: { amount: string }; error?: { cause?: { name?: string } } }>(RPC[ENV.network], {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ jsonrpc: '2.0', id: 'qt', method: 'query', params: { request_type: 'view_account', finality: 'final', account_id: vault } }),
+  });
+  if (!acct.ok) return fail(acct.error);
+  if (!acct.data.result) return fail(`Vault account ${vault} not found (${acct.data.error?.cause?.name ?? 'unknown'}).`);
+  out.push({ symbol: 'NEAR (native)', amount: acct.data.result.amount, decimals: 24 });
+  for (const [contract, symbol, decimals] of [['wrap.testnet', 'wNEAR', 24], ['usdt.fakes.testnet', 'USDT.e', 6]] as const) {
+    const b = await rpcView<string>(contract, 'ft_balance_of', { account_id: vault });
+    if (!b.ok) return fail(b.error);
+    out.push({ symbol, amount: String(b.data), decimals });
+  }
+  return ok(out, 'chain');
 }
 
 /** Prefer live sources; fall back to the recorded run, always returning the true source. */

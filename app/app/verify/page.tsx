@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { getVerifyFor, sha256Hex, type VerifyView } from '@/lib/data';
 import { PageHead, Src, useAsync, View } from '@/components/ui';
 import { WithMandate } from '@/components/mandates';
+import { RunTxList } from '@/components/real';
 import type { OnchainMandate } from '@/lib/types';
 import { canonical } from '@/lib/canon';
 
@@ -27,6 +28,7 @@ function Checks({ view, s }: { view: VerifyView; s: import('@/lib/types').Source
           </tr>
         ))}
       </tbody></table></div>
+      <RunTxList match={/complete #|mark_funded|funding vote .*executes|cancel vote .*executes/i} caption="On-chain evidence: funding, anchor and cancel transactions" />
       {view.verifier && (
         <>
           <h3>Independent verifier (separate program)</h3>

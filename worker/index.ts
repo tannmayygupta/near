@@ -75,7 +75,7 @@ const api = createApi({
   redteam: { chain, outlayer, termsFor: (m) => termsFor(state, m), nowS: clock.nowS, layerA },
   cfg: { dao, rpc, corsOrigin: process.env.WORKER_CORS_ORIGIN ?? '*', authRecipient: 'quiet-treasury.worker' },
   parse: ai ? async (intent) => {
-    const r = await parseIntent(intent, { dao, treasurer: 'unknown.near', nowS: clock.nowS(), llm: llmFromClient(ai) });
+    const r = await parseIntent(intent, { dao, treasurer: 'unknown.near', nowS: clock.nowS(), llm: llmFromClient(ai, process.env.PARSE_MODEL ?? 'Qwen/Qwen3.8-27B') }); // confidential TEE model; measured 21s/1 attempt vs glm-5.3-flash 6-170s (erratic reasoning time)
     return { terms: r.terms, summary: r.summary.join('\n') };
   } : undefined,
   health: () => ({ lastTick, ticking, net, dao, mandateContract, needsHuman: state.db.prepare("SELECT mandate_id, key, note FROM items WHERE status='needs_review'").all() }),

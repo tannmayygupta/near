@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
-import { ENV, fmtUnits, parseIntent, sha256Hex } from '@/lib/data';
+import { ENV, fmtUnits, getRealRun, parseIntent, sha256Hex } from '@/lib/data';
 import { BOUNDS, MandateTerms, boundIssues, type ParseResult } from '@/lib/types';
 import { ErrorState, PageHead, Src } from '@/components/ui';
 import { useWallet } from '@/components/wallet';
@@ -10,7 +10,10 @@ const b64 = (s: string) => btoa(unescape(encodeURIComponent(s)));
 
 export default function Wizard() {
   const w = useWallet();
-  const [intent, setIntent] = useState('Sell 20 NEAR for USDC over 3 days, not below 3.5 USDC per NEAR, then pay the two contributors on Solana and Base.');
+  // Sample intent matches the network profile: testnet trades wNEAR/USDT.e on Ref Finance (USDC is never silently mapped to USDT.e); mainnet uses Intents assets.
+  const [intent, setIntent] = useState(ENV.network === 'testnet'
+    ? 'Sell up to 0.4 NEAR for USDT.e over the next 8 minutes, never below 2 USDT.e per NEAR, in chunks of 0.05 to 0.1 NEAR every 5 to 8 seconds. Pay 50% of the proceeds to alice at qtcontrib-68669.testnet and 20% to bob at qttreasurer-83872.testnet, both on near. Take a 0.5% service fee paid to qtfund-83872.testnet.'
+    : 'Sell 20 NEAR for USDC over 3 days, not below 3.5 USDC per NEAR, then pay the two contributors on Solana and Base.');
   const [busy, setBusy] = useState(false);
   const [parsed, setParsed] = useState<ParseResult | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -41,7 +44,10 @@ export default function Wizard() {
 
   async function build() {
     if (!parsed) return;
-    const t = parsed.terms;
+    // The treasurer is whoever proposes the mandate (it earns the on-chain trust score); the worker's parser only knows a placeholder, so bind the connected wallet here BEFORE hashing.
+    if (!w.accountId) { setErr('Connect your NEAR wallet first: the connected account becomes the mandate’s treasurer (the account that earns the trust score).'); return; }
+    setErr(null);
+    const t = { ...parsed.terms, treasurer: w.accountId };
     const hash = await sha256Hex(canonical(t));
     const sellTokenContract = t.sellToken.replace(/^nep141:/, '');
     const create = {
@@ -56,13 +62,28 @@ export default function Wizard() {
         }] } },
       },
     };
-    // UNVERIFIED (plan gate G3): intents.near ft_transfer_call msg format for crediting a third-party account.
-    const fund = {
-      proposal: {
-        description: `Fund agent wallet with the mandate budget (terms_hash ${hash})`,
-        kind: { Transfer: { token_id: sellTokenContract, receiver_id: 'intents.near', amount: t.maxSellAmount, msg: JSON.stringify({ receiver_id: ENV.agent }) } },
-      },
-    };
+    let fund: object;
+    if (ENV.network === 'testnet') {
+      // REAL on testnet: native NEAR Sputnik Transfer from the DAO to the vault account that signs the Ref swaps (same as the recorded run).
+      // The vault id comes from NEXT_PUBLIC_VAULT_ACCOUNT or the committed run; if neither exists we refuse instead of guessing.
+      const run = await getRealRun();
+      const vault = process.env.NEXT_PUBLIC_VAULT_ACCOUNT || (run.ok ? run.data.real.vault.accountId : '');
+      if (!vault) { setErr('No vault account known for the funding transfer (set NEXT_PUBLIC_VAULT_ACCOUNT or commit a testnet-real run).'); return; }
+      fund = {
+        proposal: {
+          description: `Fund the vault ${vault} with the mandate budget in native NEAR (terms_hash ${hash})`,
+          kind: { Transfer: { token_id: '', receiver_id: vault, amount: t.maxSellAmount } },
+        },
+      };
+    } else {
+      // MAINNET design, UNVERIFIED (plan gate G3): intents.near ft_transfer_call msg format for crediting a third-party account.
+      fund = {
+        proposal: {
+          description: `Fund agent wallet with the mandate budget (terms_hash ${hash}) - mainnet Intents path, UNVERIFIED`,
+          kind: { Transfer: { token_id: sellTokenContract, receiver_id: 'intents.near', amount: t.maxSellAmount, msg: JSON.stringify({ receiver_id: ENV.agent }) } },
+        },
+      };
+    }
     setProposals({ create, fund, hash });
   }
 
@@ -79,7 +100,7 @@ export default function Wizard() {
     ['Buy', BOUNDS.allowedTokens[t.buyToken]?.symbol ?? t.buyToken],
     ['Price floor', `${t.minPrice} ${BOUNDS.allowedTokens[t.buyToken]?.symbol ?? ''} per ${BOUNDS.allowedTokens[t.sellToken]?.symbol ?? ''}`],
     ['Window', `${new Date(t.startTs * 1000).toISOString()} → ${new Date(t.endTs * 1000).toISOString()}`],
-    ['Chunk size', `${t.chunkMin} – ${t.chunkMax} (smallest units)`],
+    ['Chunk size', `${fmtUnits(t.chunkMin, BOUNDS.allowedTokens[t.sellToken]?.decimals ?? 0, 6)} – ${fmtUnits(t.chunkMax, BOUNDS.allowedTokens[t.sellToken]?.decimals ?? 0, 6)} ${BOUNDS.allowedTokens[t.sellToken]?.symbol ?? ''}`],
     ['Interval', `${t.intervalMinS}s – ${t.intervalMaxS}s (randomised)`],
     ['Payouts', t.payouts.map((p) => `${p.label}: ${p.percent !== undefined ? `${p.percent}%` : p.amount} on ${p.chain}`).join(' · ') || 'none'],
     ['Fee', `${t.feeBps} bps${t.feeRecipient ? ` → ${t.feeRecipient}` : ''}`],
@@ -136,7 +157,7 @@ export default function Wizard() {
           <p style={{ color: 'var(--muted)' }}>terms_hash <code>{proposals.hash}</code>. The DAO account executes these only after the vote passes.</p>
           {(['create', 'fund'] as const).map((k) => (
             <div className="card" key={k}>
-              <strong>{k === 'create' ? '1 · create_mandate (FunctionCall)' : '2 · fund agent (Transfer → Intents balance)'}</strong>
+              <strong>{k === 'create' ? '1 · create_mandate (FunctionCall)' : ENV.network === 'testnet' ? '2 · fund the vault (native NEAR Transfer from the DAO treasury, real on testnet)' : '2 · fund agent (Transfer → Intents balance, mainnet path UNVERIFIED)'}</strong>
               <pre>{JSON.stringify(proposals[k], null, 2)}</pre>
               <div className="row">
                 <button className="primary" disabled={!w.accountId} onClick={() => submit(k)}>{w.accountId ? 'Sign with wallet' : 'Connect wallet to sign'}</button>

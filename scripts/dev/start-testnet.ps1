@@ -15,7 +15,7 @@ $wenv = @{
   SIM_QUOTE_RECIPIENT = '0x1111111111111111111111111111111111111111'
   SEALED_TERMS_KEY = ('ab' * 32); STATE_DB = 'data/worker-dev.sqlite'
   NEAR_AI_API_KEY = $envf['NEAR_AI_API_KEY']
-  NEAR_TESTNET_RPC = $pub.rpc; MANDATE_FROM_ID = '7'
+  NEAR_TESTNET_RPC = $pub.rpc; MANDATE_FROM_ID = '12'
 }
 foreach ($k in $wenv.Keys) { Set-Item -Path "env:$k" -Value $wenv[$k] }
 $w = Start-Process -FilePath "npx.cmd" -ArgumentList "tsx","worker/index.ts" -PassThru -WindowStyle Hidden -RedirectStandardOutput "data\worker-dev.out.log" -RedirectStandardError "data\worker-dev.err.log"
