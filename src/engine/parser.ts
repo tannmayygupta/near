@@ -80,7 +80,8 @@ export interface ParseResult {
 const INJECTION_HINTS = /(ignore (all )?(previous|prior|above)|system prompt|you are now|disregard|override|jailbreak|reveal your)/i;
 
 export const llmFromClient = (client: NearAiClient, model?: string): Llm => async (system, user) =>
-  (await client.signedCompletion({ model, system, user })).content;
+  // 6000 tokens: reasoning models spend part of the budget thinking; 1500 truncated the JSON mid-object ("unterminated JSON") in a live browser test
+  (await client.signedCompletion({ model, system, user, maxTokens: 6000 })).content;
 
 function extractJson(raw: string): unknown {
   const s = raw.replace(/```(?:json)?/gi, '').trim();

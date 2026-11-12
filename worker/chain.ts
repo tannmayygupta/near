@@ -11,7 +11,8 @@ export interface RealChainOpts { rpc: string; mandateContract: string; dao: stri
 
 export class RealChain implements ChainPort {
   constructor(private o: RealChainOpts) {}
-  listMandates() { return mc.listMandates(this.o.rpc, this.o.mandateContract, 0, 200); }
+  // MANDATE_FROM_ID: a worker with a fresh state DB must not re-handle mandates already settled by an earlier worker (it would retry returns it cannot fund)
+  listMandates() { return mc.listMandates(this.o.rpc, this.o.mandateContract, Number(process.env.MANDATE_FROM_ID ?? 0), 200); }
   getMandate(id: number) { return mc.getMandate(this.o.rpc, this.o.mandateContract, id); }
   getTrust(t: string) { return mc.getTrust(this.o.rpc, this.o.mandateContract, t); }
   async councilSize(): Promise<number> {

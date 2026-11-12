@@ -8,7 +8,7 @@ import * as mc from '../../src/near/mandate.js';
 
 const cfg = JSON.parse(readFileSync('data/secret/sandbox-accounts.json', 'utf8'));
 const A = (n: string) => accountFor(RPC.sandbox, cfg.accounts[n].accountId, cfg.accounts[n].secretKey);
-const root = JSON.parse(readFileSync('data/secret/sandbox-root.json', 'utf8').replace(/^ï»¿/, ''));
+const root = JSON.parse(readFileSync('data/secret/sandbox-root.json', 'utf8').replace(/^﻿/, ''));
 const rootAcc = accountFor(RPC.sandbox, root.account_id, root.secret_key);
 const results: Array<[string, boolean, string]> = [];
 const check = (name: string, ok: boolean, note = '') => { results.push([name, ok, note]); console.log(ok ? 'PASS' : 'FAIL', name, note); };

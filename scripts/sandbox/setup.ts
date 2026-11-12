@@ -4,7 +4,7 @@ import { KeyPair, actions } from 'near-api-js';
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { RPC, accountFor, providerFor, b64, TGAS, NEAR } from '../../src/near/chain.js';
 
-const root = JSON.parse(readFileSync('data/secret/sandbox-root.json', 'utf8').replace(/^ï»¿/, ''));
+const root = JSON.parse(readFileSync('data/secret/sandbox-root.json', 'utf8').replace(/^﻿/, ''));
 const rootAcc = accountFor(RPC.sandbox, root.account_id, root.secret_key);
 
 mkdirSync('data/secret', { recursive: true });

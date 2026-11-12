@@ -128,7 +128,14 @@ export function createApi(d: ApiDeps) {
       }
       if (method === 'POST') {
         const b = await body(req);
-        if (p === '/api/parse') { if (!d.parse) return json(res, 503, { error: 'parser not configured (NEAR_AI_API_KEY missing)' }); return json(res, 200, await d.parse(String(b.intent ?? ''))); }
+        if (p === '/api/parse') { if (!d.parse) return json(res, 503, { error: 'parser not configured (NEAR_AI_API_KEY missing)' }); 
+          try { return json(res, 200, await d.parse(String(b.intent ?? ''))); }
+          catch (e) { // a rejected/unparseable intent is the caller's problem (422), not a server crash
+            const err = e as { name?: string; code?: string; message?: string; attempts?: number };
+            if (err.name === 'ParseError') return json(res, 422, { error: err.message, code: err.code, attempts: err.attempts });
+            return json(res, 502, { error: `private AI request failed: ${err.message}` });
+          }
+        }
         if ((m = p.match(/^\/api\/redteam\/([a-z_]+)$/))) return json(res, 200, await runAttack(m[1], b.mandateId, d.redteam));
         if (p === '/api/sealed-terms') {
           try { await authenticate(req.headers['x-near-auth'] as string | undefined, 'sealed-terms', { rpc: d.cfg.rpc, recipient: d.cfg.authRecipient, isCouncil: d.isCouncil }); }

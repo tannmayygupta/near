@@ -4,11 +4,12 @@ import { NearAiClient, SignedCompletion } from '../src/near/ai';
 import type { Summarizer } from './ports';
 
 export const SUMMARY_SYSTEM = `You write a factual 3-sentence summary of a DAO treasury settlement report given as JSON.
-Rules: use ONLY numbers present in the JSON; do not give investment advice; if any fill, payout or leftover has source "simulated", say plainly that those figures come from a simulated testnet execution and are not real trades; mention any violations. Reply with the summary text only.`;
+Amounts in the JSON are integers in each token's smallest unit (wNEAR/NEAR have 24 decimals, USDC has 6 decimals): convert them to human units (e.g. 6000000000000000000000000 wNEAR = 6 NEAR, 21098100 USDC = 21.0981 USDC) and never print raw long integers.
+Rules: use ONLY numbers present in the JSON (converted as above); do not give investment advice; if any fill, payout or leftover has source "simulated", say plainly that those figures come from a simulated testnet execution and are not real trades; mention any violations. Reply with the summary text only.`;
 
 export function createSummarizer(ai: NearAiClient, onCompletion?: (c: SignedCompletion) => void, model?: string): Summarizer {
   return async (report) => {
-    const c = await ai.signedCompletion({ model, system: SUMMARY_SYSTEM, user: JSON.stringify(compact(report)), maxTokens: 1500 });
+    const c = await ai.signedCompletion({ model, system: SUMMARY_SYSTEM, user: JSON.stringify(compact(report)), maxTokens: 5000 });
     onCompletion?.(c);
     return { text: c.content.trim(), chatId: c.chatId, requestHash: c.requestHash, responseHash: c.responseHash, signer: c.signature.signing_address };
   };

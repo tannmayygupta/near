@@ -16,7 +16,7 @@ import { createApi } from '../../worker/api';
 import { startFakeOutLayer } from './fake-outlayer';
 
 const cfg = JSON.parse(readFileSync('data/secret/sandbox-accounts.json', 'utf8'));
-const root = JSON.parse(readFileSync('data/secret/sandbox-root.json', 'utf8').replace(/^ï»¿/, ''));
+const root = JSON.parse(readFileSync('data/secret/sandbox-root.json', 'utf8').replace(/^﻿/, ''));
 const A = (n: string) => accountFor(RPC.sandbox, cfg.accounts[n].accountId, cfg.accounts[n].secretKey);
 const rootAcc = accountFor(RPC.sandbox, root.account_id, root.secret_key);
 const SELL = 'nep141:wrap.near', BUY = 'nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1';
