@@ -4,7 +4,7 @@ import { Account, JsonRpcProvider, KeyPairSigner, getTransactionLastResult } fro
 export const RPC = {
   sandbox: process.env.SANDBOX_RPC ?? 'http://localhost:3030',
   mainnet: process.env.NEAR_MAINNET_RPC ?? 'https://rpc.mainnet.fastnear.com',
-  testnet: process.env.NEAR_TESTNET_RPC ?? 'https://rpc.testnet.near.org',
+  testnet: process.env.NEAR_TESTNET_RPC ?? 'https://test.rpc.fastnear.com',
 } as const;
 export type Net = keyof typeof RPC;
 
@@ -31,3 +31,4 @@ export async function callTx(acc: Account, contractId: string, methodName: strin
   const o: any = await acc.callFunctionRaw({ contractId, methodName, args, gas, deposit });
   return { value: getTransactionLastResult(o), txHash: o.transaction?.hash ?? o.transaction_outcome?.id ?? '' };
 }
+

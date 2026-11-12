@@ -1,4 +1,4 @@
-// Typed data layer. THREE sources only: (a) worker read-only API, (b) NEAR RPC views, (c) a committed recorded run.
+﻿// Typed data layer. THREE sources only: (a) worker read-only API, (b) NEAR RPC views, (c) a committed recorded run.
 // No mocked numbers: every function returns Result<T>; failure is an explicit error the UI must render.
 //
 // Worker API contract (implemented by the worker lane; paths relative to NEXT_PUBLIC_WORKER_API):
@@ -17,14 +17,16 @@ import type {
 export const ENV = {
   worker: (process.env.NEXT_PUBLIC_WORKER_API ?? '').replace(/\/$/, ''),
   network: (process.env.NEXT_PUBLIC_NEAR_NETWORK ?? 'testnet') as 'testnet' | 'mainnet',
-  dao: process.env.NEXT_PUBLIC_DAO_ACCOUNT ?? '',
+  dao: process.env.NEXT_PUBLIC_DAO ?? process.env.NEXT_PUBLIC_DAO_ACCOUNT ?? '',
   mandate: process.env.NEXT_PUBLIC_MANDATE_CONTRACT ?? '',
   agent: process.env.NEXT_PUBLIC_AGENT_ACCOUNT ?? '',
 };
 
+// NEXT_PUBLIC_NEAR_RPC overrides the RPC of the configured network (e.g. https://rpc.testnet.near.org)
+const RPC_OVERRIDE = process.env.NEXT_PUBLIC_NEAR_RPC;
 export const RPC = {
-  testnet: 'https://test.rpc.fastnear.com',
-  mainnet: 'https://rpc.mainnet.fastnear.com',
+  testnet: (ENV.network === 'testnet' && RPC_OVERRIDE) || 'https://test.rpc.fastnear.com',
+  mainnet: (ENV.network === 'mainnet' && RPC_OVERRIDE) || 'https://rpc.mainnet.fastnear.com',
 };
 const rpcUrl = () => RPC[ENV.network];
 
@@ -159,3 +161,4 @@ export function toCsv(rows: LedgerRow[]): string {
   const esc = (s: string) => `"${s.replace(/"/g, '""')}"`;
   return [head.join(','), ...rows.map((r) => [r.ts, r.kind, r.label, r.token, r.amount, r.chain, r.ref ?? '', r.status].map(esc).join(','))].join('\n');
 }
+

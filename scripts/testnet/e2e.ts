@@ -1,4 +1,4 @@
-// FULL END-TO-END ON PUBLIC NEAR TESTNET (EXEC_MODE=simulated).
+﻿// FULL END-TO-END ON PUBLIC NEAR TESTNET (EXEC_MODE=simulated).
 //  REAL here: NEAR AI Cloud TEE parsing + signed completions + attestation, Sputnik DAO proposals/votes, mandate contract state + anchoring,
 //             OutLayer testnet wallet POLICY (Layer A) denials, 1Click read-only dry quotes (prices).
 //  SIMULATED (source tag 'simulated', request ids `sim-*`): swap fills, payouts, leftovers sweep. They are NOT trades; Intents is mainnet-only.
@@ -25,8 +25,8 @@ import { A, loadConfig, proposeWithHash, voteTx, rec, txs, explorerTx, sleep } f
 
 process.env.EXEC_MODE = 'simulated';
 const c = loadConfig();
-const pub = JSON.parse(readFileSync('data/testnet-public.json', 'utf8'));
-const layerAEvidence = JSON.parse(readFileSync('data/testnet-layer-a.json', 'utf8'));
+const pub = JSON.parse(readFileSync('data/testnet-public.json', 'utf8').replace(/^\uFEFF/, ''));
+const layerAEvidence = JSON.parse(readFileSync('data/testnet-layer-a.json', 'utf8').replace(/^\uFEFF/, ''));
 const SELL = 'nep141:wrap.near', BUY = 'nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1';
 const SOL = '9xQeWvG816bUx9EPjHmaT23yvVM2ZWbrrpZb9PusVFin', BASE = '0x1111111111111111111111111111111111111111';
 const results: Array<[string, boolean, string]> = [];
@@ -65,6 +65,7 @@ const sim = new SimulatedOutLayer({ recipient: layerAEvidence.wallet.address });
 class HChain extends RealChain {
   constructor(private o2: RealChainOpts) { super(o2); }
   private tx(label: string, method: string, args: object) { return callTx(this.o2.agent, this.o2.mandateContract, method, args, TGAS(30)).then((r) => { rec(label, r.txHash); return r; }); }
+  listMandates() { return super.listMandates().then((l) => l.filter((mm) => mm.id >= nextId)); } // only this run's mandates (older test mandates stay untouched)
   markFunded(id: number) { return this.tx(`agent: mark_funded #${id}`, 'mark_funded', { id }); }
   recordChunk(id: number, index: number, soldAmount: string) { return this.tx(`agent: record_chunk #${id}.${index}`, 'record_chunk', { id, index, sold_amount: soldAmount }); }
   beginSettlement(id: number) { return this.tx(`agent: begin_settlement #${id}`, 'begin_settlement', { id }); }
@@ -74,11 +75,11 @@ const chain = new HChain({ rpc: c.rpc, mandateContract: c.mandate, dao: c.dao, a
 const state = new State(':memory:', Buffer.alloc(32, 9));
 const summaries: any[] = [];
 const exec = new Executor({
-  outlayer: sim, chain, state, clock: { nowS, sleep },
+  outlayer: sim, chain, state, clock: { nowS, sleep }, log: (k, f) => { if (!['chunk_submitted'].includes(k)) console.log('  [worker]', k, JSON.stringify(f).slice(0, 170)); },
   benchmark: async (terms, ts) => quoteToSample(await dryQuote({ originAsset: terms.sellToken, destinationAsset: terms.buyToken, amount: (10n ** 23n).toString(), recipient: layerAEvidence.wallet.address, refundTo: layerAEvidence.wallet.address, nowS: () => ts }), terms.sellToken, terms.buyToken),
   summarize: createSummarizer(ai, (sc) => { completions.push({ label: 'settlement summary', ...sc }); summaries.push(sc); }, model),
 }, { ...defaultConfig(c.dao), floorRetryS: 5 });
-const runUntil = async (cond: () => Promise<boolean> | boolean, maxS: number) => { const t0 = Date.now(); while (Date.now() - t0 < maxS * 1000) { await exec.tick(); if (await cond()) return true; await sleep(1500); } return false; };
+const runUntil = async (cond: () => Promise<boolean> | boolean, maxS: number) => { const t0 = Date.now(); while (Date.now() - t0 < maxS * 1000) { await exec.tick(); if (await cond()) return true; await sleep(3000); } return false; };
 
 const createArgs = (terms: MandateTerms, tier: 'small' | 'mid' | 'large'): mc.CreateArgs => ({ treasurer: terms.treasurer, terms_hash: hashJson(terms), terms_json: JSON.stringify(terms), sell_token: terms.sellToken, max_sell: terms.maxSellAmount, start_ns: terms.startTs * 1e9, end_ns: terms.endTs * 1e9, tier });
 const pid = await proposeWithHash(c, 'council1', `Quiet Treasury: sell ${Number(BigInt(t.maxSellAmount) / 10n ** 20n) / 10000} NEAR quietly (mandate #${nextId})`, sp.functionCallKind(c.mandate, 'create_mandate', createArgs(t, 'small')), 'DAO proposal: create_mandate (AI-parsed terms)');
@@ -182,3 +183,7 @@ console.log('\nOn-chain evidence (public testnet):');
 for (const x of txs) console.log(' ', x.label.padEnd(52), explorerTx(x.txHash));
 void swapsRun1; void summaries;
 process.exit(failed.length ? 1 : 0);
+
+
+
+

@@ -1,4 +1,4 @@
-// Shared helpers for the PUBLIC TESTNET scripts. Secrets live in data/secret (git-ignored); public ids in data/testnet-public.json.
+﻿// Shared helpers for the PUBLIC TESTNET scripts. Secrets live in data/secret (git-ignored); public ids in data/testnet-public.json.
 import { KeyPair } from 'near-api-js';
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { RPC, accountFor, callTx, TGAS } from '../../src/near/chain.js';
@@ -44,7 +44,9 @@ export async function proposeTx(c: TestnetConfig, who: string, description: stri
 
 /** Vote with tx hash capture. Sputnik echoes the proposal kind. */
 export async function voteTx(c: TestnetConfig, who: string, id: number, action: 'VoteApprove' | 'VoteReject', label: string): Promise<void> {
-  const p = await getProposal(c.rpc, c.dao, id);
+  let p: Awaited<ReturnType<typeof getProposal>> | undefined; // the view may lag the write by a block or two
+  for (let i = 0; i < 8 && !p; i++) { try { p = await getProposal(c.rpc, c.dao, id); } catch { await sleep(1500); } }
+  if (!p) throw new Error(`proposal ${id} not visible after retries`);
   const { txHash } = await callTx(A(c, who), c.dao, 'act_proposal', { id, action, proposal: p.kind }, TGAS(150));
   rec(label, txHash);
 }
@@ -58,3 +60,4 @@ export async function proposeWithHash(c: TestnetConfig, who: string, description
 }
 
 export const RPC_TESTNET = RPC.testnet;
+
