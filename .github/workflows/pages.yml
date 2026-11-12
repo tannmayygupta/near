@@ -1,0 +1,70 @@
+name: Deploy static demo to GitHub Pages
+
+# Builds app/ as a fully static site (no server, no worker, no secrets) and publishes it.
+# The site reads the committed recorded runs (app/public/demo-run) and the PUBLIC NEAR testnet RPC live from the browser.
+# One-time owner step: Settings > Pages > Build and deployment > Source = "GitHub Actions".
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'app/**'
+      - 'data/testnet-public.json'
+      - '.github/workflows/pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      # Public, non-secret ids only (accounts on the public testnet). Nothing here is a key.
+      - name: Read public testnet config
+        run: |
+          node -e "const c=require('./data/testnet-public.json');const fs=require('fs');fs.appendFileSync(process.env.GITHUB_ENV,['NEXT_PUBLIC_DAO='+c.dao,'NEXT_PUBLIC_MANDATE_CONTRACT='+c.mandateContract,'NEXT_PUBLIC_AGENT_ACCOUNT='+c.agent,'NEXT_PUBLIC_VAULT_ACCOUNT='+c.vault,'NEXT_PUBLIC_NEAR_RPC='+c.rpc].join('\n')+'\n')"
+
+      - name: Install
+        run: npm ci
+        working-directory: app
+
+      - name: Build static export
+        run: npm run build
+        working-directory: app
+        env:
+          STATIC_EXPORT: '1'
+          NEXT_PUBLIC_STATIC_DEMO: '1'
+          NEXT_PUBLIC_BASE_PATH: /${{ github.event.repository.name }}
+          NEXT_PUBLIC_NEAR_NETWORK: testnet
+
+      - name: Disable Jekyll (keeps the _next folder)
+        run: touch app/out/.nojekyll
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: app/out
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

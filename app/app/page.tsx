@@ -15,7 +15,7 @@ function Config() {
     <div className="card">
       <table><tbody>
         {rows.map(([k, v]) => (
-          <tr key={k}><td>{k}</td><td>{!v ? <span className="pill bad">not configured</span> : k === 'Worker API' ? <span className="mono">{v}</span> : <Acct id={v} role={k === 'DAO account' ? 'sputnik dao' : k === 'Agent wallet' ? 'agent' : 'contract'} />}</td></tr>
+          <tr key={k}><td>{k}</td><td>{!v ? (k === 'Worker API' ? <span className="pill warn" title="Wizard parsing and live red-team attacks need the worker">none: hosted demo (run locally for the worker)</span> : <span className="pill bad">not configured</span>) : k === 'Worker API' ? <span className="mono">{v}</span> : <Acct id={v} role={k === 'DAO account' ? 'sputnik dao' : k === 'Agent wallet' ? 'agent' : 'contract'} />}</td></tr>
         ))}
         <tr><td>Network</td><td><span className="pill">{ENV.network}</span></td></tr>
       </tbody></table>

@@ -22,6 +22,13 @@ export const ENV = {
   agent: process.env.NEXT_PUBLIC_AGENT_ACCOUNT ?? '',
 };
 
+/** Static hosted demo (GitHub Pages): no worker, recorded run files + live public RPC only. */
+export const STATIC_DEMO = process.env.NEXT_PUBLIC_STATIC_DEMO === '1';
+/** Path prefix when served under a sub-path (e.g. /near on GitHub Pages). Empty locally. */
+export const BASE = (process.env.NEXT_PUBLIC_BASE_PATH ?? '').replace(/\/$/, '');
+export const asset = (p: string) => `${BASE}${p}`;
+export const NO_WORKER = 'This hosted demo has no worker attached, so this feature needs the worker: run it locally (see README, "Run it"). The recorded run on this site is still real and every transaction in it opens on the public testnet explorer.';
+
 // NEXT_PUBLIC_NEAR_RPC overrides the RPC of the configured network (e.g. https://rpc.testnet.near.org)
 const RPC_OVERRIDE = process.env.NEXT_PUBLIC_NEAR_RPC;
 export const RPC = {
@@ -46,7 +53,7 @@ async function getJson<T>(url: string, init?: RequestInit): Promise<{ ok: true; 
 
 // ---------- (a) worker API ----------
 async function worker<T>(path: string, init?: RequestInit): Promise<Result<T>> {
-  if (!ENV.worker) return fail('Worker API not configured (set NEXT_PUBLIC_WORKER_API).');
+  if (!ENV.worker) return fail(NO_WORKER);
   const r = await getJson<T>(`${ENV.worker}${path}`, init);
   return r.ok ? ok(r.data, 'api') : fail(r.error);
 }
@@ -58,7 +65,7 @@ export const getReport = (id: number) => worker<Report>(`/api/report/${id}`);
 export const getVerifyChecks = (id: number) => worker<VerifyCheck[]>(`/api/verify/${id}`);
 /** Parse an intent via the worker; surfaces the worker's own message (HTTP 422/500 bodies are JSON {error, hint?}). */
 export async function parseIntent(intent: string): Promise<Result<ParseResult>> {
-  if (!ENV.worker) return fail('Worker API not configured (set NEXT_PUBLIC_WORKER_API).');
+  if (!ENV.worker) return fail(NO_WORKER);
   try {
     const r = await fetch(`${ENV.worker}/api/parse`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ intent }), cache: 'no-store' });
     const text = await r.text();
@@ -180,7 +187,7 @@ export async function getReportFor(m: OnchainMandate): Promise<Result<ReportView
   if (rec.ok && rec.data.report) return ok({ report: rec.data.report, why: '' }, 'recorded');
   const why = m.status === 'Cancelled'
     ? 'This mandate was cancelled by a DAO vote. A cancelled mandate produces no settlement report (the contract only anchors reports for completed mandates); completed chunks and returned funds are in the cancel record.'
-    : m.status === 'Completed' ? 'This mandate is completed on-chain, but neither the worker database nor the committed recorded run holds its report.'
+    : m.status === 'Completed' ? 'This mandate is completed on-chain, but neither the worker database nor the committed recorded run holds its report. (If this is the sealed mandate, its full record, swaps, payouts and verifier are on the Sealed page.)'
     : `This mandate is ${m.status}; a settlement report is produced when it completes.`;
   return ok({ report: null, why }, 'chain');
 }
@@ -233,7 +240,7 @@ export async function getVerifyFor(m: OnchainMandate): Promise<Result<VerifyView
 }
 let runMode: string | null = null;
 export async function getRecordedRun(): Promise<Result<RecordedRun>> {
-  const r = await getJson<RecordedRun>('/demo-run/run.json');
+  const r = await getJson<RecordedRun>(asset('/demo-run/run.json'));
   if (r.ok) runMode = r.data.mode ?? null;
   return r.ok ? ok(r.data, 'recorded') : fail('No recorded run committed yet (app/public/demo-run/run.json). It is produced by the real end-to-end run.');
 }

@@ -1,15 +1,17 @@
 'use client';
 import { useState } from 'react';
 import { BOUNDS, type OnchainMandate } from '@/lib/types';
-import { ENV, fmtUnits, getMandates, nsToDate, withRecordedFallback } from '@/lib/data';
+import { ENV, fmtUnits, getMandates, getRecordedRun, nsToDate, withRecordedFallback } from '@/lib/data';
 import { Src, StatusPill, useAsync, View } from './ui';
 
 export const loadMandates = () => withRecordedFallback(getMandates(), (r) => (r.mandate ? [r.mandate] : undefined));
 
 /** Most useful default: a mandate that is executing, else the latest Completed one with an anchored report, else the latest. */
-export function defaultMandate(list: OnchainMandate[]): OnchainMandate {
+export function defaultMandate(list: OnchainMandate[], covered?: Set<number>): OnchainMandate {
   const rev = [...list].reverse();
-  return rev.find((m) => m.status === 'Executing') ?? rev.find((m) => m.status === 'Completed' && m.report_hash) ?? rev.find((m) => m.status === 'Completed') ?? list[list.length - 1];
+  // With no worker (hosted demo) prefer a completed mandate whose receipts/report are in the committed recorded run, so the page shows data instead of an empty state.
+  const coveredDone = covered && covered.size ? rev.find((m) => covered.has(m.id) && m.status === 'Completed' && m.report_hash) : undefined;
+  return rev.find((m) => m.status === 'Executing') ?? coveredDone ?? rev.find((m) => m.status === 'Completed' && m.report_hash) ?? rev.find((m) => m.status === 'Completed') ?? list[list.length - 1];
 }
 
 export const tokenInfo = (id: string) => BOUNDS.allowedTokens[id] ?? { symbol: id, decimals: 0 };
@@ -55,12 +57,18 @@ export function MandateTable({ list, s }: { list: OnchainMandate[]; s: import('@
 /** Picker that loads mandates and hands the selected one (default: executing, else latest) to children. */
 export function WithMandate({ children }: { children: (m: OnchainMandate, s: import('@/lib/types').Source) => React.ReactNode }) {
   const a = useAsync(loadMandates, []);
+  const rec = useAsync(getRecordedRun, []);
   const [sel, setSel] = useState<number | null>(null);
+  const covered = new Set<number>();
+  if (!ENV.worker && !rec.loading && rec.result.ok) {
+    if (rec.result.data.mandate) covered.add(rec.result.data.mandate.id);
+    if (rec.result.data.cancelRun?.mandate) covered.add(rec.result.data.cancelRun.mandate.id);
+  }
   return (
     <View a={a} what="mandates">
       {(list, s) => {
         if (!list.length) return <div className="state">No mandates yet. Create one on the &ldquo;New mandate&rdquo; page{ENV.mandate ? '' : ' (and configure NEXT_PUBLIC_MANDATE_CONTRACT)'}.</div>;
-        const def = defaultMandate(list);
+        const def = defaultMandate(list, covered);
         const cur = list.find((m) => m.id === sel) ?? def;
         return (
           <>

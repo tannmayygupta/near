@@ -2,6 +2,7 @@
 import type { ReactNode } from 'react';
 import './globals.css';
 import { Nav } from '@/components/nav';
+import { StaticBanner } from '@/components/banner';
 import { WalletProvider } from '@/components/wallet';
 
 export const metadata: Metadata = {
@@ -16,6 +17,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       <body>
         <WalletProvider>
           <Nav />
+          <StaticBanner />
           <main className="wrap">{children}</main>
           <footer className="wrap" style={{ color: 'var(--muted)', fontSize: 13 }}>
             Tags next to numbers show their source: <span className="tag chain">chain</span> real on-chain fact (NEAR RPC or a transaction you can open), <span className="tag api">api</span> worker API, <span className="tag recorded">recorded</span> committed run (provenance; its on-chain facts carry a transaction link). A &ldquo;simulated&rdquo; tag appears only if the data itself says so. Not investment advice.

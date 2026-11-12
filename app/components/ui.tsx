@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState, type ReactNode } from 'react';
 import type { Result, Source } from '@/lib/types';
+import { NO_WORKER } from '@/lib/data';
 
 /** Small badge saying where a number came from. Required next to every displayed figure. */
 export function Src({ s }: { s: Source }) {
@@ -12,6 +13,15 @@ export function Loading({ what }: { what: string }) {
   return <div className="state loading" role="status">Loading {what}…</div>;
 }
 export function ErrorState({ what, error }: { what: string; error: string }) {
+  // Not a failure: the hosted static demo simply has no worker. Say so plainly and point at the local run.
+  if (error === NO_WORKER) {
+    return (
+      <div className="state" role="status">
+        <strong>{what}: needs the worker.</strong>
+        <div style={{ marginTop: 6 }}>{error}</div>
+      </div>
+    );
+  }
   return (
     <div className="state error" role="alert">
       <strong>{what} unavailable.</strong>
