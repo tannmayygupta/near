@@ -34,7 +34,20 @@ npx tsx scripts/sandbox/worker-e2e.ts  # full worker run on the sandbox (uses a 
 npx tsx src/verify/cli.ts <report.json>  # verify a settlement report
 cd app && npm install && npm run dev   # dashboard (reads recorded run in app/public/demo-run when present)
 ```
-Recorded real-money runs, when present, live in `data/demo-run/` and are labelled **recorded** in the UI.
+
+### Public NEAR testnet (needs `.env` with `NEAR_AI_API_KEY`; testnet accounts are free)
+```
+npx tsx scripts/testnet/setup.ts                      # real Sputnik DAO + mandate contract on testnet (ids in data/testnet-public.json)
+npx tsx scripts/testnet/dao-flow.ts                   # real votes -> contract, real tx hashes: expect 8/8 PASS
+npx tsx scripts/testnet/layer-a.ts                    # OutLayer testnet wallet policy set programmatically + real 403 policy_denied
+npx tsx --env-file=.env scripts/testnet/e2e.ts        # FULL flow incl. NEAR AI signed parse/summary, DAO votes, worker, red team: expect 20/20 PASS
+npx tsx src/verify/cli.ts data/demo-run/proof-bundle.json   # independent verification of the recorded run: expect 13/13 PASS
+cp app/.env.testnet.example app/.env.local && cd app && npm run build && npm start   # dashboard pointed at the testnet DAO
+EXEC_MODE=simulated ... npx tsx worker/index.ts       # worker API (see .env.example); EXEC_MODE=live is the default and is UNPROVEN with real money
+```
+**On testnet, swap fills, payouts and the leftover sweep are SIMULATED** (priced from real read-only 1Click quotes, request ids `sim-*`, source tag `simulated`): NEAR Intents exists only on mainnet, so no trade happens. Everything else in that run (AI parse + signatures, DAO votes, contract state, anchored report hash, OutLayer wallet-policy denials) is real. See [docs/CLAIMS.md](docs/CLAIMS.md).
+
+The recorded testnet run is in `data/demo-run/run.json` (also served by the dashboard from `app/public/demo-run/`) and is labelled **recorded** / **simulated** in the UI. Recorded real-money (mainnet) runs do not exist yet.
 
 ## Trust assumptions (read these)
 - The worker is **not** in a TEE in v0: it sees the mandates it executes. Wallet keys are in OutLayer's TDX enclave; AI inference is in NEAR AI's TEE.
