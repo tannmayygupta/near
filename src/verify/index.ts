@@ -2,6 +2,7 @@
 import { verifyCommit } from '../engine/hash';
 import { Report, verifyReportHash } from '../engine/settlement';
 import { AttestationReport, SignedCompletion, checkNonceBinding, verifySignedCompletion } from '../near/ai';
+import { SealedEvidence, sealedChecks } from './sealed';
 
 export interface ProofBundle {
   attestation?: { report: AttestationReport; nonce: string };
@@ -10,6 +11,8 @@ export interface ProofBundle {
   report?: Report;
   /** request bodies revealed after a sealed mandate: each must hash to a signed request_hash */
   reveal?: { requestBodies: string[]; signedRequestHashes: string[] };
+  /** commit-reveal evidence for a SEALED mandate (see ./sealed.ts) */
+  sealed?: SealedEvidence;
 }
 export interface Check { name: string; ok: boolean; detail?: string }
 
@@ -40,5 +43,6 @@ export function verifyBundle(b: ProofBundle): { ok: boolean; checks: Check[] } {
     for (const [i, body] of b.reveal.requestBodies.entries())
       run(`revealed request #${i} hashes to a TEE-signed request hash`, () => hashes.has(sha256Hex(body)) || 'no signed hash matches');
   }
+  if (b.sealed) checks.push(...sealedChecks(b.sealed, b.report));
   return { ok: checks.length > 0 && checks.every((c) => c.ok), checks };
 }
