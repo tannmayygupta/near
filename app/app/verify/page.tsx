@@ -1,19 +1,44 @@
-﻿'use client';
+'use client';
 import { useState } from 'react';
-import { getVerifyChecks, sha256Hex, withRecordedFallback } from '@/lib/data';
+import { getVerifyFor, sha256Hex, type VerifyView } from '@/lib/data';
 import { PageHead, Src, useAsync, View } from '@/components/ui';
 import { WithMandate } from '@/components/mandates';
-import type { OnchainMandate, VerifyCheck } from '@/lib/types';
+import type { OnchainMandate } from '@/lib/types';
 import { canonical } from '@/lib/canon';
 
 const MODEL = 'z-ai/glm-5.3-flash';
 
-function Checks({ list, s }: { list: VerifyCheck[]; s: import('@/lib/types').Source }) {
-  if (!list.length) return <div className="state">The worker returned no checks.</div>;
+function Checks({ view, s }: { view: VerifyView; s: import('@/lib/types').Source }) {
+  const list = view.checks;
+  if (!list.length) return <div className="state">No checks are available for this mandate.</div>;
+  const pass = list.filter((c) => c.state === 'pass').length, fail = list.filter((c) => c.state === 'fail').length, pend = list.filter((c) => c.state === 'pending').length;
   return (
-    <div className="card"><table><thead><tr><th>Check</th><th>Result</th><th>Detail</th></tr></thead><tbody>
-      {list.map((c) => <tr key={c.name}><td>{c.name}<Src s={s} /></td><td>{c.ok ? <span className="pill ok">pass</span> : <span className="pill bad">FAIL</span>}</td><td className="mono">{c.detail}</td></tr>)}
-    </tbody></table></div>
+    <>
+      <div className="row" style={{ margin: '8px 0' }}>
+        <span className={`pill ${fail ? 'bad' : pend ? 'warn' : 'ok'}`}>{pass} pass · {fail} fail · {pend} pending</span>
+        {view.note && <span style={{ color: 'var(--muted)', fontSize: 13 }}>{view.note}</span>}
+      </div>
+      <div className="card"><table><thead><tr><th>Check</th><th>Result</th><th>Detail</th></tr></thead><tbody>
+        {list.map((c, i) => (
+          <tr key={`${i}-${c.name}`}>
+            <td>{c.name}<Src s={s} /></td>
+            <td>{c.state === 'pass' ? <span className="pill ok">pass</span> : c.state === 'pending' ? <span className="pill warn">pending</span> : <span className="pill bad">FAIL</span>}</td>
+            <td className="mono">{c.detail}</td>
+          </tr>
+        ))}
+      </tbody></table></div>
+      {view.verifier && (
+        <>
+          <h3>Independent verifier (separate program)</h3>
+          <div className="card">
+            <div className="row"><span className={`pill ${view.verifier.ok ? 'ok' : 'bad'}`}>{view.verifier.checks.filter((c) => c.ok).length}/{view.verifier.checks.length} pass</span><Src s="recorded" /><span className="mono">npx tsx src/verify/cli.ts data/demo-run/proof-bundle.json</span></div>
+            <table><tbody>
+              {view.verifier.checks.map((c, i) => <tr key={`${i}-${c.name}`}><td>{c.name}</td><td>{c.ok ? <span className="pill ok">pass</span> : <span className="pill bad">FAIL</span>}</td><td className="mono">{c.detail ?? ''}</td></tr>)}
+            </tbody></table>
+          </div>
+        </>
+      )}
+    </>
   );
 }
 
@@ -35,13 +60,13 @@ function LiveAttestation() {
       setOut({
         ok: echoed && !!g.intel_quote && !!m.intel_quote,
         lines: [
-          `fresh nonce sent: ${nonce.slice(0, 16)}â€¦`,
+          `fresh nonce sent: ${nonce.slice(0, 16)}…`,
           `nonce echoed by gateway: ${echoed}`,
           `gateway signer: ${g.signing_address ?? '-'}`,
           `gateway Intel TDX quote present: ${!!g.intel_quote} (${(g.intel_quote ?? '').length} hex chars)`,
           `model signer: ${m.signing_address ?? '-'}`,
-          `model Intel TDX quote present: ${!!m.intel_quote} Â· NVIDIA GPU payload present: ${!!m.nvidia_payload}`,
-          'Scope: this checks nonce freshness and presence of hardware evidence. Full quote verification is done by the worker (DCAP) or NEARâ€™s verifier: https://cloud.near.ai/verify',
+          `model Intel TDX quote present: ${!!m.intel_quote} · NVIDIA GPU payload present: ${!!m.nvidia_payload}`,
+          'Scope: this checks nonce freshness and presence of hardware evidence. Full quote verification is done by the worker (DCAP) or NEAR’s verifier: https://cloud.near.ai/verify',
         ],
       });
     } catch (e) {
@@ -51,7 +76,7 @@ function LiveAttestation() {
   }
   return (
     <div className="card">
-      <div className="row"><button className="primary" onClick={run} disabled={busy}>{busy ? 'Checkingâ€¦' : 'Run live attestation check'}</button><Src s="api" /><span className="mono">{MODEL}</span></div>
+      <div className="row"><button className="primary" onClick={run} disabled={busy}>{busy ? 'Checking…' : 'Run live attestation check'}</button><Src s="api" /><span className="mono">{MODEL}</span></div>
       {out && <><div style={{ marginTop: 8 }}>{out.ok ? <span className="pill ok">pass</span> : <span className="pill bad">not verified</span>}</div><pre>{out.lines.join('\n')}</pre></>}
     </div>
   );
@@ -65,13 +90,13 @@ function HashCheck({ m }: { m: OnchainMandate }) {
     try { h = await sha256Hex(canonical(JSON.parse(text))); } catch { return setRes('Input is not valid JSON.'); }
     const asIs = await sha256Hex(text.trim());
     const hit = h === m.terms_hash ? 'canonical JSON' : asIs === m.terms_hash ? 'raw text' : null;
-    setRes(hit ? `MATCH (${hit}) Â· ${m.terms_hash}` : `NO MATCH Â· computed ${h} Â· on-chain ${m.terms_hash}`);
+    setRes(hit ? `MATCH (${hit}) · ${m.terms_hash}` : `NO MATCH · computed ${h} · on-chain ${m.terms_hash}`);
   }
   return (
     <div className="card">
       <p style={{ marginTop: 0 }}>Paste revealed mandate terms (JSON). We compute SHA-256 of the canonical form and compare with the commitment stored on-chain <Src s="chain" />.</p>
       <label htmlFor="terms" className="sr">Revealed terms JSON</label>
-      <textarea id="terms" value={text} onChange={(e) => setText(e.target.value)} placeholder='{"dao":"â€¦"}' />
+      <textarea id="terms" value={text} onChange={(e) => setText(e.target.value)} placeholder='{"dao":"…"}' />
       <div className="row" style={{ marginTop: 8 }}>
         <button className="primary" onClick={run} disabled={!text.trim()}>Check commitment</button>
         {m.revealed_terms && <button onClick={() => setText(m.revealed_terms ?? '')}>Load revealed terms from chain</button>}
@@ -82,11 +107,11 @@ function HashCheck({ m }: { m: OnchainMandate }) {
 }
 
 function Body({ m, s }: { m: OnchainMandate; s: import('@/lib/types').Source }) {
-  const checks = useAsync(() => withRecordedFallback(getVerifyChecks(m.id), (r) => r.checks), [m.id]);
+  const checks = useAsync(() => getVerifyFor(m), [m.id]);
   return (
     <>
       <h2>Worker verification</h2>
-      <View a={checks} what="verification checks">{(l, cs) => <Checks list={l} s={cs} />}</View>
+      <View a={checks} what="verification checks">{(v, cs) => <Checks view={v} s={cs} />}</View>
       <h2>Commitment check <Src s={s} /></h2>
       <HashCheck m={m} />
     </>

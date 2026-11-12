@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 import { ENV, getBalances, getDaoPolicy, withRecordedFallback } from '@/lib/data';
 import { PageHead, Src, Stat, useAsync, View } from '@/components/ui';
 import { MandateTable, loadMandates, TIER_RULES } from '@/components/mandates';
@@ -26,7 +26,7 @@ function BalancesCard({ b, s }: { b: Balances; s: import('@/lib/types').Source }
   return (
     <div className="grid">
       {b.map((x, i) => (
-        <Stat key={i} k={`${x.symbol} Â· ${x.where}`} v={fmtUnits(x.amount, BOUNDS.allowedTokens[x.token]?.decimals ?? 0)} s={s} />
+        <Stat key={i} k={`${x.symbol} · ${x.where}`} v={fmtUnits(x.amount, BOUNDS.allowedTokens[x.token]?.decimals ?? 0)} s={s} />
       ))}
     </div>
   );

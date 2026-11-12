@@ -1,10 +1,16 @@
-﻿'use client';
+'use client';
 import { useState } from 'react';
 import { BOUNDS, type OnchainMandate } from '@/lib/types';
 import { ENV, fmtUnits, getMandates, nsToDate, withRecordedFallback } from '@/lib/data';
 import { Src, StatusPill, useAsync, View } from './ui';
 
 export const loadMandates = () => withRecordedFallback(getMandates(), (r) => (r.mandate ? [r.mandate] : undefined));
+
+/** Most useful default: a mandate that is executing, else the latest Completed one with an anchored report, else the latest. */
+export function defaultMandate(list: OnchainMandate[]): OnchainMandate {
+  const rev = [...list].reverse();
+  return rev.find((m) => m.status === 'Executing') ?? rev.find((m) => m.status === 'Completed' && m.report_hash) ?? rev.find((m) => m.status === 'Completed') ?? list[list.length - 1];
+}
 
 export const tokenInfo = (id: string) => BOUNDS.allowedTokens[id] ?? { symbol: id, decimals: 0 };
 export const parseTerms = (m: OnchainMandate): Record<string, any> | null => {
@@ -28,8 +34,8 @@ export function MandateRow({ m, s }: { m: OnchainMandate; s: import('@/lib/types
       <td>{m.tier}</td>
       <td>{fmtUnits(m.sold, t.decimals)} / {fmtUnits(m.max_sell, t.decimals)} {t.symbol}<Src s={s} /></td>
       <td>{m.chunks}<Src s={s} /></td>
-      <td className="mono">{nsToDate(m.start_ns)} â†’ {nsToDate(m.end_ns)}</td>
-      <td className="mono">{m.terms_hash.slice(0, 10)}â€¦{m.report_hash ? ` / report ${m.report_hash.slice(0, 8)}â€¦` : ''}</td>
+      <td className="mono">{nsToDate(m.start_ns)} → {nsToDate(m.end_ns)}</td>
+      <td className="mono">{m.terms_hash.slice(0, 10)}…{m.report_hash ? ` / report ${m.report_hash.slice(0, 8)}…` : ''}</td>
     </tr>
   );
 }
@@ -53,15 +59,15 @@ export function WithMandate({ children }: { children: (m: OnchainMandate, s: imp
   return (
     <View a={a} what="mandates">
       {(list, s) => {
-        if (!list.length) return <div className="state">No mandates yet. Create one on the â€œNew mandateâ€ page{ENV.mandate ? '' : ' (and configure NEXT_PUBLIC_MANDATE_CONTRACT)'}.</div>;
-        const def = list.find((m) => m.status === 'Executing') ?? list[list.length - 1];
+        if (!list.length) return <div className="state">No mandates yet. Create one on the &ldquo;New mandate&rdquo; page{ENV.mandate ? '' : ' (and configure NEXT_PUBLIC_MANDATE_CONTRACT)'}.</div>;
+        const def = defaultMandate(list);
         const cur = list.find((m) => m.id === sel) ?? def;
         return (
           <>
             <div className="row" style={{ margin: '8px 0' }}>
               <label htmlFor="msel">Mandate</label>
               <select id="msel" value={cur.id} onChange={(e) => setSel(Number(e.target.value))} style={{ padding: 8, borderRadius: 8 }}>
-                {list.map((m) => <option key={m.id} value={m.id}>#{m.id} â€“ {m.status}</option>)}
+                {list.map((m) => <option key={m.id} value={m.id}>#{m.id} – {m.status}{m.report_hash ? ' · report anchored' : m.status === 'Cancelled' ? ' · cancelled, no report' : ''}</option>)}
               </select>
               <StatusPill status={cur.status} /><Src s={s} />
             </div>

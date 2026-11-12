@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 import { useState } from 'react';
 import { ENV, getDaoPolicy, getMandates, getProposals, getTrust } from '@/lib/data';
 import { PageHead, Src, StatusPill, useAsync, View } from '@/components/ui';
@@ -70,7 +70,7 @@ export default function Votes() {
                           <button className="primary" disabled={!w.accountId} onClick={() => vote(p.id, 'VoteApprove', p.kind)}>Approve</button>
                           <button className="danger" disabled={!w.accountId} onClick={() => vote(p.id, 'VoteReject', p.kind)}>Reject</button>
                         </div>
-                      ) : 'â€”'}
+                      ) : '—'}
                       {msg[p.id] && <div className="mono">{msg[p.id]}</div>}
                     </td>
                   </tr>
@@ -84,7 +84,7 @@ export default function Votes() {
       <div className="card"><table><tbody>
         {Object.entries(TIER_RULES).map(([k, v]) => <tr key={k}><td>{k}</td><td>{v}</td></tr>)}
       </tbody></table>
-        <p style={{ color: 'var(--muted)', fontSize: 13 }}>Tiers are enforced by the mandate contract plus the worker reading proposal votes. The DAOâ€™s own roles and thresholds are below.</p></div>
+        <p style={{ color: 'var(--muted)', fontSize: 13 }}>Tiers are enforced by the mandate contract plus the worker reading proposal votes. The DAO’s own roles and thresholds are below.</p></div>
       <h2>Treasurer trust <Src s="chain" /></h2>
       <Treasurers />
       <h2>DAO roles and thresholds</h2>

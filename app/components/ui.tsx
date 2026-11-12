@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 import { useEffect, useState, type ReactNode } from 'react';
 import type { Result, Source } from '@/lib/types';
 
@@ -9,7 +9,7 @@ export function Src({ s }: { s: Source }) {
 }
 
 export function Loading({ what }: { what: string }) {
-  return <div className="state loading" role="status">Loading {what}â€¦</div>;
+  return <div className="state loading" role="status">Loading {what}…</div>;
 }
 export function ErrorState({ what, error }: { what: string; error: string }) {
   return (

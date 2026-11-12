@@ -1,5 +1,5 @@
 'use client';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ENV, fmtUnits, parseIntent, sha256Hex } from '@/lib/data';
 import { BOUNDS, MandateTerms, boundIssues, type ParseResult } from '@/lib/types';
 import { ErrorState, PageHead, Src } from '@/components/ui';
@@ -17,6 +17,14 @@ export default function Wizard() {
   const [tier, setTier] = useState<'small' | 'mid' | 'large'>('small');
   const [confirmed, setConfirmed] = useState(false);
   const [sent, setSent] = useState<Record<string, string>>({});
+
+  const [elapsed, setElapsed] = useState(0);
+  useEffect(() => {
+    if (!busy) return;
+    setElapsed(0);
+    const t = setInterval(() => setElapsed((x) => x + 1), 1000);
+    return () => clearInterval(t);
+  }, [busy]);
 
   async function run() {
     setBusy(true); setErr(null); setParsed(null); setConfirmed(false); setSent({});
@@ -86,8 +94,8 @@ export default function Wizard() {
         <label htmlFor="intent">Intent</label>
         <textarea id="intent" value={intent} onChange={(e) => setIntent(e.target.value)} />
         <div className="row" style={{ marginTop: 10 }}>
-          <button className="primary" onClick={run} disabled={busy || intent.trim().length < 10}>{busy ? 'Parsing…' : 'Parse with private AI'}</button>
-          <span style={{ color: 'var(--muted)', fontSize: 13 }}>Inference runs in a NEAR AI TEE; the AI only proposes, it never holds keys.</span>
+          <button className="primary" onClick={run} disabled={busy || intent.trim().length < 10}>{busy ? `Parsing… ${elapsed}s` : 'Parse with private AI'}</button>
+          <span style={{ color: 'var(--muted)', fontSize: 13 }}>{busy ? 'The private AI is reading your request (10–40 s is normal; it may retry once if its first answer is invalid).' : 'Inference runs in a NEAR AI TEE; the AI only proposes, it never holds keys.'}</span>
         </div>
       </div>
       {err && <ErrorState what="Parsing" error={err} />}
