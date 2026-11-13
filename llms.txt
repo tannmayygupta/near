@@ -9,12 +9,14 @@ This file is a map, not evidence. Verify with the commands below; `docs/CLAIMS.m
 - `npm run verify` : independent verifier over three recorded proof bundles (offline)
 - `npm run secret-scan` : repository secret scan
 - `npm run dashboard` : Next.js dashboard on :3100 (after `npm --prefix app ci`)
+- `npm run verify:contract` and `npm run check:evidence` : network checks (deployed contract hash == committed wasm; every cited tx exists on testnet)
 
 ## Read first
 - `docs/JUDGES.md` : 5-minute path, what is proven and what is not
 - `README.md` : per-track explanation, architecture, NEAR technology map
 - `docs/CLAIMS.md` : claims vs evidence
 - `docs/CUSTODY.md` : OutLayer custody wallet, per-mandate policy, what the policy does and does not enforce
+- `docs/OUTLAYER-FEEDBACK.md` : reproducible findings about OutLayer's API (for the sponsor)
 - `docs/SEALED.md`, `docs/DEFI.md`, `docs/ARCHITECTURE.md`, `docs/RUNBOOK.md`
 
 ## Code map

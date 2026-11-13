@@ -14,3 +14,9 @@ data/tunnel.pids
 *.log
 .vercel/
 *.tsbuildinfo
+
+# internal working files (kept locally, not part of the public submission)
+PLAN.md
+PLAN-v1-blackbox-ARCHIVED.md
+docs/submission.md
+docs/TEAM-KIT.md

@@ -10,6 +10,8 @@
     "test": "vitest run",
     "verify": "tsx src/verify/cli.ts data/demo-run/proof-bundle.json && tsx src/verify/cli.ts data/demo-run/sealed-proof-bundle.json && tsx src/verify/cli.ts data/demo-run/custody-proof-bundle.json",
     "secret-scan": "tsx scripts/dev/secret-scan.ts",
+    "check:evidence": "tsx scripts/dev/check-evidence.ts",
+    "verify:contract": "tsx scripts/dev/verify-contract-hash.ts",
     "worker": "tsx worker/index.ts",
     "dashboard": "npm --prefix app run dev",
     "e2e:real": "tsx --env-file=.env scripts/testnet/e2e-real.ts",

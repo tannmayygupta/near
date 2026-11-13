@@ -6,12 +6,19 @@ Quiet Treasury: a NEAR DAO votes once on a plain-English mandate; a bounded agen
 
 ```
 npm ci
-npm test              # 134 unit tests (vitest): executor, guards, parser, verifier, custody policy, routes
+npm test              # 134 unit tests (vitest): executor, guards, parser, verifier, custody policy, routes; the Rust contract's 16 tests run in CI (cargo test --release)
 npm run verify        # independent verifier on three recorded proof bundles (13 + 21 + 13 checks), offline
 npm run secret-scan   # 0 findings expected
 ```
 
 `npm run verify` re-checks, from the bundle alone: NEAR AI nonce echo, EIP-191 signature recovery, signer attested in the TEE report, report hash, every fill >= the price floor, no violations. For the sealed mandate it also proves `sha256(salt|terms)` equals the commitment that was public from the start, and that five kinds of tampering are rejected.
+
+With network access, two more checks:
+
+```
+npm run verify:contract   # the contract deployed on testnet has exactly the code hash of the committed contracts/mandate/out/mandate.wasm
+npm run check:evidence    # every transaction cited in the README, docs and recorded runs exists on public testnet (writes data/evidence-check.json; ~10 minutes, rate-limited API)
+```
 
 ## 2. Check the on-chain claims (public explorer, ~2 minutes)
 
@@ -21,6 +28,7 @@ npm run secret-scan   # 0 findings expected
 | The DAO funds the agent with a Sputnik `Transfer` proposal | same file, `DAO proposal: Transfer budget` and `funding vote 2/3 -> executes` |
 | Real swaps on Ref Finance testnet, real payouts, real returns | `real.swaps`, `real.payouts` in `data/demo-run/run.json` and `data/demo-run/custody-run.json` (every row has a tx hash) |
 | The vault is an **OutLayer custody wallet** and the worker writes its policy per mandate | `docs/CUSTODY.md`, `data/demo-run/custody-run.json` -> `layerA.policies` (policy store txs) and `layerA.probes` (403s) |
+| A worker killed after a real swap landed does not swap twice | `data/demo-run/restart-run.json` (12/12): the in-flight chunk resolves to the same swap tx |
 | Sealed (commit-reveal) mandate | `docs/SEALED.md`, `data/demo-run/sealed-run.json`, dashboard `/sealed` |
 | Cross-chain routes are **quoted**, not settled | `docs/DEFI.md`, `data/demo-run/mainnet-readonly.json`, dashboard `/routes` |
 

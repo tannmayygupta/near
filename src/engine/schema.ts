@@ -1,4 +1,4 @@
-// Single source of truth for the MANDATE object (PLAN.md section 5). Shared by parser, worker, contract client, dashboard, verifier.
+// Single source of truth for the MANDATE object. Shared by parser, worker, contract client, dashboard, verifier.
 import { z } from 'zod';
 
 export const CHAINS = ['near', 'solana', 'base', 'arbitrum', 'ethereum'] as const;

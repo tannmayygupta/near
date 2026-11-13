@@ -17,9 +17,10 @@ function Step([string]$name, [scriptblock]$body) {
 Step "git clone (local, committed files only)" { git clone --quiet --local $repo $tmp } | Out-Null
 Set-Location $tmp
 Step "npm ci (root)" { npm ci --no-audit --no-fund } | Out-Null
-$t = Step "vitest run" { npx vitest run }
+$t = Step "npm test" { npm test }
 if ($t -match "Tests\s+(\d+) passed") { Write-Host "  vitest: $($Matches[0])" }
-Step "verifier on recorded proof bundle" { npx tsx src/verify/cli.ts data/demo-run/proof-bundle.json } | Out-Null
+Step "npm run verify (three recorded proof bundles)" { npm run verify } | Out-Null
+Step "npm run secret-scan" { npm run secret-scan } | Out-Null
 Step "worker boots and answers /health (simulated mode, scratch env)" {
   $env:NEAR_NETWORK = 'testnet'; $env:EXEC_MODE = 'simulated'; $env:PORT = '8791'
   $pub = Get-Content data\testnet-public.json -Raw | ConvertFrom-Json

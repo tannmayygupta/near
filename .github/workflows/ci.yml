@@ -1,0 +1,57 @@
+name: CI
+
+# Everything here runs offline: no keys, no network calls to NEAR, OutLayer or NEAR AI.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  tests:
+    name: tests, verifier, secret scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - name: Independent verifier on the three recorded proof bundles
+        run: npm run verify
+      - run: npm run secret-scan
+
+  dashboard:
+    name: dashboard builds
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - name: Read public testnet config
+        run: |
+          node -e "const c=require('./data/testnet-public.json');const fs=require('fs');fs.appendFileSync(process.env.GITHUB_ENV,['NEXT_PUBLIC_DAO='+c.dao,'NEXT_PUBLIC_MANDATE_CONTRACT='+c.mandateContract,'NEXT_PUBLIC_AGENT_ACCOUNT='+c.agent,'NEXT_PUBLIC_VAULT_ACCOUNT='+c.vault,'NEXT_PUBLIC_NEAR_RPC='+c.rpc].join('\n')+'\n')"
+      - run: npm ci
+        working-directory: app
+      - run: npm run build
+        working-directory: app
+        env:
+          STATIC_EXPORT: '1'
+          NEXT_PUBLIC_STATIC_DEMO: '1'
+          NEXT_PUBLIC_NEAR_NETWORK: testnet
+
+  contract:
+    name: Rust contract tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.86.0
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: contracts/mandate
+      - run: cargo test --release
+        working-directory: contracts/mandate
