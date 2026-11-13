@@ -47,11 +47,9 @@ jobs:
   contract:
     name: Rust contract tests
     runs-on: ubuntu-latest
+    # same image the contract is built and tested with locally (scripts/build-contract.ps1)
+    container: rust:1.86-bookworm
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@1.86.0
-      - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: contracts/mandate
       - run: cargo test --release
         working-directory: contracts/mandate
