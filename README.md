@@ -8,6 +8,7 @@ Built for **NEAR HACKATHON 2026**. Everything in this repository was written dur
 
 [![CI](https://github.com/tannmayygupta/near/actions/workflows/ci.yml/badge.svg)](https://github.com/tannmayygupta/near/actions/workflows/ci.yml)
 
+**Live demo:** https://tannmayygupta.github.io/near/ (static: the recorded runs plus live testnet RPC reads; the wizard's live AI parse and the red-team "Run attack" buttons need the worker, so run those locally).
 **For judges (5 minutes):** [docs/JUDGES.md](docs/JUDGES.md) · claims vs evidence: [docs/CLAIMS.md](docs/CLAIMS.md) · machine-readable map: [llms.txt](llms.txt)
 **Run it, no keys needed:** `npm ci && npm test && npm run verify` (134 unit tests; independent verifier on three recorded runs).
 **No mainnet money was moved.** Everything real here is on public testnet; the mainnet-only parts are listed as *not proven* below.
@@ -164,7 +165,7 @@ Testnet tokens are play money. The wallet key is in OutLayer's TEE, but testnet 
 * **Tests:** 134 unit tests (vitest), 16 Rust contract tests; `npm run verify` re-checks three recorded proof bundles (13 + 21 + 13 checks).
 * **End-to-end runs on public testnet:** 29/29 (key vault), 35/35 (OutLayer custody, 6 real swaps, 4 payouts/fee/returns), 36/36 (sealed), 12/12 (crash-restart).
 * **Evidence:** all 186 distinct transactions cited here, in the docs and in the recorded runs were looked up on public testnet and all 186 exist (`npm run check:evidence`, result in `data/evidence-check.json`). The deployed contract's code hash equals the committed wasm (`npm run verify:contract`).
-* **Not done:** no mainnet transactions; the hosted demo is not live yet (run it locally); Trezu is not integrated.
+* **Not done:** no mainnet transactions; the hosted demo is static (no worker behind it); Trezu is not integrated.
 * **Feedback for OutLayer, with reproductions:** [docs/OUTLAYER-FEEDBACK.md](docs/OUTLAYER-FEEDBACK.md).
 
 ## Verify it yourself
