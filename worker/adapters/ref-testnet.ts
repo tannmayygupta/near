@@ -71,6 +71,8 @@ export class RefTestnetAdapter implements OutLayerPort {
   }
   get vaultId() { return this.signer.id; }
   get custody() { return this.signer.kind; }
+  /** native NEAR held by the vault (gas/storage float + any unspent budget), for the monitor */
+  native(): Promise<bigint> { return this.nativeBalance(); }
   /** Called by the executor once a mandate is funded and BEFORE its first trade: with OutLayer custody this writes the mandate's wallet policy (Layer A). */
   async prepareMandate(mandateId: number, terms: MandateTerms): Promise<{ policyTx?: string; reused?: boolean }> {
     if (!this.o.policy) return {};

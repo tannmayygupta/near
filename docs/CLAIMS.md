@@ -39,6 +39,13 @@ Recorded 2026-11-12 on PUBLIC NEAR testnet; every row has a transaction hash in 
 | The key cannot write OutLayer wallet policies (needs a deposit): the policy owner is a separate full-access credential (`CUSTODY_OWNER_KEY`) | VERIFIED-TESTNET (by design) | `worker/index.ts`, `data/testnet-scoped-key.json` probe "allowed method with an attached deposit" |
 | A zero price floor can no longer become a mandate (the schema accepted `minPrice: "0"` until 2026-11-14) | FIXED + unit-tested | `src/engine/schema.ts`, `tests/engine.test.ts` |
 
+## Worker hardening - added 2026-11-14
+| Claim | Status | Evidence |
+|---|---|---|
+| The worker validates its whole environment at startup, lists every problem at once, refuses a cross-network account mix-up, refuses mainnet without `ALLOW_MAINNET=1`, and logs whether the agent key is a scoped function-call key (`REQUIRE_SCOPED_KEY=1` makes a full-access key fatal) | VERIFIED (unit tests + live smoke of the real binary) | `worker/config.ts`, `tests/hardening.test.ts` |
+| The API is rate limited per client (tiered; IPv6 /64 buckets; `X-Forwarded-For` trusted only from loopback); 429 with `retry-after` | VERIFIED (unit tests + live: 20 allowed then 429 on `/api/parse`) | `worker/ratelimit.ts` |
+| Operator alerts (Telegram sink, digit-insensitive 1 h de-duplication, retry/refused result, bot token never logged) and a 5-minute monitor (stale tick, items needing a human, a mandate with no progress inside its window, low vault gas), each source read independently | VERIFIED (unit tests); not exercised against a real Telegram chat | `worker/alerts.ts`, `worker/monitor.ts` |
+
 ## OutLayer custody run: `EXEC_MODE=testnet-outlayer` (`npm run e2e:custody`, 36/36) - added 2026-11-13
 Recorded 2026-11-13 on PUBLIC NEAR testnet in `data/demo-run/custody-run.json` (proof bundle `custody-proof-bundle.json`, verifier 13/13). Details and the probes behind it: `docs/CUSTODY.md`.
 | Claim | Status | Evidence |
@@ -68,7 +75,7 @@ The previous run (`run-simulated.json`, `proof-bundle-simulated.json`) used `EXE
 | **G13: an OutLayer wallet policy CAN be set programmatically** by an owner NEAR key (encrypt-policy -> sign-policy -> `store_wallet_policy` on `outlayer.testnet`) | VERIFIED-TESTNET | `src/near/outlayer-policy.ts`, `scripts/testnet/layer-a.ts`, `data/testnet-layer-a.json` |
 | Layer A blocks attacks for real: unlisted destination and over-cap transfer return 403 `policy_denied` | VERIFIED-TESTNET (native NEAR transfers through the same policy engine) | `data/testnet-layer-a.json`, red-team `unlisted_payout` + `over_cap` in `data/demo-run/run.json` |
 | Layer B blocks the other attacks (executor guards + mandate contract) | VERIFIED-TESTNET | red-team results in `data/demo-run/run.json` |
-| Worker logic: tiers, floors, idempotent chunks, crash resume, cancel mid-run, payouts, leftover sweep, anchored report | VERIFIED (135 unit tests in total) + LOCAL e2e | `npx vitest run`, `scripts/sandbox/worker-e2e.ts` |
+| Worker logic: tiers, floors, idempotent chunks, crash resume, cancel mid-run, payouts, leftover sweep, anchored report | VERIFIED (155 unit tests in total) + LOCAL e2e | `npx vitest run`, `scripts/sandbox/worker-e2e.ts` |
 | Intent parser rejects prompt-injection and out-of-bounds terms | VERIFIED (unit tests) | `tests/engine.test.ts` |
 | OutLayer confidential swap QUOTE works for a fresh wallet | VERIFIED (read-only live call, 2026-11-11) | `scripts/outlayer-readonly-check.ts` |
 | Dashboard builds; all 13 routes serve; data layer reads real testnet chain state | VERIFIED | `cd app && npm run build`; smoke check in the testnet run notes |

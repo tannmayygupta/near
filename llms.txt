@@ -5,7 +5,7 @@
 This file is a map, not evidence. Verify with the commands below; `docs/CLAIMS.md` lists every claim with its status (VERIFIED-TESTNET, LOCAL, SIMULATED, UNVERIFIED, NOT IMPLEMENTED).
 
 ## Run
-- `npm ci && npm test` : 135 unit tests (vitest), no network or keys needed
+- `npm ci && npm test` : 155 unit tests (vitest), no network or keys needed
 - `npm run demo` : the whole story offline (labelled simulation, ~2 s)
 - `npm run verify` : independent verifier over three recorded proof bundles (offline)
 - `npm run secret-scan` : repository secret scan

@@ -1,5 +1,6 @@
-﻿// Read-only HTTP API for the dashboard (paths match app/lib/data.ts) + redteam POSTs + council-only sealed terms.
+// Read-only HTTP API for the dashboard (paths match app/lib/data.ts) + redteam POSTs + council-only sealed terms.
 import { createServer, IncomingMessage, Server, ServerResponse } from 'node:http';
+import { RateLimiter, clientIp } from './ratelimit';
 import { BOUNDS, MandateTerms } from '../src/engine/schema';
 import { commit, hashJson } from '../src/engine/hash';
 import { verifyReportHash } from '../src/engine/settlement';
@@ -12,6 +13,8 @@ import type { ChainPort, OutLayerPort } from './ports';
 export interface ApiDeps {
   state: State; chain: ChainPort; outlayer: OutLayerPort; redteam: RedteamDeps;
   cfg: { dao: string; rpc: string; corsOrigin: string; authRecipient: string };
+  /** per-process rate limiter (default: tiered, see worker/ratelimit.ts) */
+  limiter?: RateLimiter;
   parse?: (intent: string) => Promise<unknown>;
   isCouncil: (account: string) => Promise<boolean>;
   nowS: () => number;
@@ -29,6 +32,7 @@ export async function termsFor(state: State, m: OnChainMandate): Promise<Mandate
 }
 
 export function createApi(d: ApiDeps) {
+  const limiter = d.limiter ?? new RateLimiter();
   const json = (res: ServerResponse, code: number, body: unknown) => { res.writeHead(code, { 'content-type': 'application/json', ...cors() }); res.end(JSON.stringify(body)); };
   const cors = () => ({ 'access-control-allow-origin': d.cfg.corsOrigin, 'access-control-allow-headers': 'content-type, x-near-auth', 'access-control-allow-methods': 'GET, POST, OPTIONS' });
   const body = async (req: IncomingMessage) => { let s = ''; for await (const c of req) { s += c; if (s.length > 64_000) throw new Error('body too large'); } return s ? JSON.parse(s) : {}; };
@@ -106,6 +110,10 @@ export function createApi(d: ApiDeps) {
   const handler = async (req: IncomingMessage, res: ServerResponse) => {
     const url = new URL(req.url ?? '/', 'http://x'); const p = url.pathname; const method = req.method ?? 'GET';
     if (method === 'OPTIONS') { res.writeHead(204, cors()); return res.end(); }
+    if (p !== '/health') { // tiered rate limit; X-Forwarded-For is trusted only from a loopback peer (the tunnel)
+      const lim = limiter.check(clientIp(req.socket?.remoteAddress, req.headers?.['x-forwarded-for'] as string | undefined), p);
+      if (!lim.ok) { res.writeHead(429, { 'content-type': 'application/json', 'retry-after': String(lim.retryAfterS), ...cors() }); return res.end(JSON.stringify({ error: 'rate limited', rule: lim.rule, retryAfterS: lim.retryAfterS })); }
+    }
     try {
       if (p === '/health') return json(res, 200, { ok: true, ...d.health() });
       let m: RegExpMatchArray | null;

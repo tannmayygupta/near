@@ -6,6 +6,7 @@ import { Acct } from '@/components/acct';
 import { MandateTable, loadMandates, TIER_RULES } from '@/components/mandates';
 import { BOUNDS, type Balances } from '@/lib/types';
 import { fmtUnits } from '@/lib/data';
+import { StartHere } from '@/components/start-here';
 
 function Config() {
   const rows: [string, string][] = [
@@ -43,6 +44,7 @@ export default function Page() {
   return (
     <>
       <PageHead title="Treasury overview" lead="A DAO votes once on a plain-English mandate. An agent executes it in chunks, stays inside the mandate, and posts a verifiable settlement report. The execution shown here is real on the public NEAR testnet; the confidential, mainnet-only parts are marked as not proven." />
+      <StartHere />
       <WhatIsReal />
       <h2>Connection</h2>
       <Config />

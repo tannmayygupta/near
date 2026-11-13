@@ -1,4 +1,4 @@
-﻿// Worker entry. Production wiring only: real OutLayer client (configurable base URL), real chain adapter, SQLite state, HTTP API.
+// Worker entry. Production wiring only: real OutLayer client (configurable base URL), real chain adapter, SQLite state, HTTP API.
 // Env: NEAR_NETWORK(mainnet|testnet|sandbox) DAO_ACCOUNT MANDATE_CONTRACT AGENT_ACCOUNT_ID AGENT_SECRET_KEY OUTLAYER_WK [OUTLAYER_BASE_URL]
 //      SEALED_TERMS_KEY STATE_DB PORT TICK_MS WORKER_CORS_ORIGIN NEAR_AI_API_KEY (optional: /api/parse + AI summaries)
 import { RPC, accountFor, Net } from '../src/near/chain';
@@ -20,14 +20,35 @@ import { State, loadKey } from './state';
 import { createApi } from './api';
 import { termsFor } from './api';
 import type { Clock, Logger, OutLayerPort } from './ports';
+import { KeyPair } from 'near-api-js';
+import { providerFor } from '../src/near/chain';
+import { validateEnv, classifyPermission, agentKeyProblems } from './config';
+import { Alerts, TelegramSink } from './alerts';
+import { startMonitor } from './monitor';
 
+// Startup guard: every configuration problem at once, before anything is touched (worker/config.ts, tests/hardening.test.ts).
+const envCheck = validateEnv(process.env);
+if (!envCheck.ok) { console.error(JSON.stringify({ level: 'fatal', msg: 'invalid configuration', problems: envCheck.problems })); process.exit(1); }
+for (const w of envCheck.warnings) console.warn(JSON.stringify({ level: 'warn', msg: w }));
 const need = (k: string) => { const v = process.env[k]; if (!v) { console.error(JSON.stringify({ level: 'fatal', msg: `missing env ${k}` })); process.exit(1); } return v; };
-const log: Logger = (kind, fields) => console.log(JSON.stringify({ t: new Date().toISOString(), kind, ...fields }));
+const rawLog = (kind: string, fields: Record<string, unknown>) => console.log(JSON.stringify({ t: new Date().toISOString(), kind, ...fields }));
+// Operator alerts (optional): ALERT_TELEGRAM_TOKEN + ALERT_TELEGRAM_CHAT. Without them alerts are logged as `alert_disabled`.
+const alerts = new Alerts(process.env.ALERT_TELEGRAM_TOKEN && process.env.ALERT_TELEGRAM_CHAT ? new TelegramSink(process.env.ALERT_TELEGRAM_TOKEN, process.env.ALERT_TELEGRAM_CHAT, fetch, rawLog) : null, { log: rawLog });
+const ALERT_KINDS = new Set(['wallet_blocked', 'too_many_failures', 'refused', 'prepare_error']);
+const log: Logger = (kind, fields) => { rawLog(kind, fields); if (ALERT_KINDS.has(kind)) void alerts.admin(`Quiet Treasury: ${kind} ${JSON.stringify(fields).slice(0, 400)}`); };
 
 const net = (process.env.NEAR_NETWORK ?? 'testnet') as Net;
 const rpc = RPC[net];
 const dao = need('DAO_ACCOUNT'), mandateContract = need('MANDATE_CONTRACT');
 const agent = accountFor(rpc, need('AGENT_ACCOUNT_ID'), need('AGENT_SECRET_KEY'));
+// Is the agent key as narrow as the agent needs? (a function-call key limited to the 5 agent methods; a full-access key is allowed but loudly flagged)
+try {
+  const pk = KeyPair.fromString(need('AGENT_SECRET_KEY') as never).getPublicKey().toString();
+  const ak: any = await providerFor(rpc).viewAccessKey({ accountId: need('AGENT_ACCOUNT_ID'), publicKey: pk } as never);
+  const problems = agentKeyProblems(classifyPermission(ak.permission), mandateContract);
+  log(problems.length ? 'agent_key_scope_warning' : 'agent_key_scope_ok', { problems });
+  if (problems.length && process.env.REQUIRE_SCOPED_KEY === '1') { console.error(JSON.stringify({ level: 'fatal', msg: 'REQUIRE_SCOPED_KEY=1 but the agent key is not scoped', problems })); process.exit(1); }
+} catch (e) { log('agent_key_scope_unchecked', { message: (e as Error).message.slice(0, 120) }); }
 // EXEC_MODE: 'live' (default; the real OutLayer client, UNPROVEN with real money) | 'simulated' (testnet adapter; fills are priced from real 1Click dry quotes and are NOT trades)
 const execMode = process.env.EXEC_MODE ?? 'live';
 // 'testnet-real': REAL on-chain testnet execution through Ref Finance (swap, payout, return are real txs; custody = a vault key held by the worker; see worker/adapters/ref-testnet.ts)
@@ -108,6 +129,15 @@ const api = createApi({
 
 const server = await api.listen(Number(process.env.PORT ?? 8787));
 log('listening', { port: process.env.PORT ?? 8787, net });
+// Monitor (every 5 min; MONITOR=0 disables): stale tick, items needing a human, a mandate with no progress inside its window, a low vault. worker/monitor.ts
+if (process.env.MONITOR !== '0') {
+  startMonitor({
+    tick: () => lastTick, tickEveryS: Number(process.env.TICK_MS ?? 5000) / 1000,
+    needsReview: () => (state.db.prepare("SELECT COUNT(*) AS n FROM items WHERE status='needs_review'").get() as { n: number }).n,
+    running: async () => (await chain.listMandates()).filter((m) => m.status === 'Funded' || m.status === 'Executing').map((m) => ({ id: m.id, lastProgressS: Math.max(0, ...state.chunks(m.id).map((c) => c.ts)), windowEndS: m.end_ns / 1e9 })),
+    vaultNative: ref ? async () => ref!.native() : undefined,
+  }, alerts, log);
+}
 
 // near.social publishing (FastData KV): SOCIAL_PUBLISH=1 SOCIAL_ACCOUNT_ID / SOCIAL_ACCOUNT_KEY (default: the agent account)
 let social: import('./social-publisher').SocialPublisher | undefined;

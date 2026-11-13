@@ -6,7 +6,7 @@ Quiet Treasury: a NEAR DAO votes once on a plain-English mandate; a bounded agen
 
 ```
 npm ci
-npm test              # 135 unit tests (vitest): executor, guards, parser, verifier, custody policy, routes; the Rust contract's 21 tests (16 unit + 5 property tests) run in CI (cargo test --release)
+npm test              # 155 unit tests (vitest): executor, guards, parser, verifier, custody policy, routes; the Rust contract's 21 tests (16 unit + 5 property tests) run in CI (cargo test --release)
 npm run demo          # the whole story offline (simulation, ~2 s, exit code 0 only if every check holds)
 npm run verify        # independent verifier on three recorded proof bundles (13 + 21 + 10 checks), offline
 npm run secret-scan   # 0 findings expected
