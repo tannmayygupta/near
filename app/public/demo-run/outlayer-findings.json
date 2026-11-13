@@ -1,0 +1,36 @@
+{
+  "what": "What an OutLayer TESTNET custody wallet can do, and what its wallet policy (Layer A) actually enforces. Probed live on 2026-11-13 with scripts/testnet/outlayer-probe.ts. Every tx below is on public NEAR testnet and its actions can be listed with: npx tsx scripts/dev/tx-inspect.ts <wallet> <txHash>. Findings are reported as observed, including the ones that go against us and one earlier reading of ours that turned out to be wrong (F3).",
+  "api": "https://testnet-api.outlayer.ai",
+  "owner": "qtagent-68669.testnet",
+  "wallet": { "id": "976d3a1c-2663-8379-9aee-4d5f60a4004b", "address": "98b125dbd9790b6fd836825fb3b94d0f23df6e931fad5ad62fd74f14739f89f7" },
+  "findings": [
+    {
+      "id": "F1", "result": "WORKS",
+      "claim": "An OutLayer testnet wallet signs arbitrary contract calls (POST /wallet/v1/call): wrap NEAR, register storage, and swap on Ref Finance via ft_transfer_call.",
+      "evidence": { "wrapTx": "FuyF9Q754uZseNdfc4yC2fP187HggdgyrnetFsf2dZmc", "refSwapTx": "3mQf1h3jbEve71PFPg8KcqBRWke1AiThyJBN8thqRg8Z", "note": "0.1 wNEAR in, 4,251,695 USDT.e out of Ref pool #57 (that pool had drifted far from market; see docs/CUSTODY.md), received in the wallet" }
+    },
+    {
+      "id": "F2", "result": "ENFORCED",
+      "claim": "A call to a contract that is not on the policy whitelist is refused by OutLayer before signing: 403 policy_denied \"Address 'attacker-unlisted.testnet' is not in whitelist\". A NATIVE NEAR transfer to an unlisted account, or above the per-transaction cap, is refused the same way (403 policy_denied, \"Per-transaction limit exceeded for native\").",
+      "evidence": { "policyStoreTx": "9ko1UEwq94HNLYcN9UZJMJKLWU6AxGgk2pJxvTi2KGjx", "note": "refusals are HTTP responses, so there is no tx; the policy that produced them is stored in the tx above. The same refusals are recorded inside the full run: data/demo-run/custody-run.json" }
+    },
+    {
+      "id": "F3", "result": "PITFALL (verified, corrects our first reading)",
+      "claim": "POST /wallet/v1/transfer with a `token` field does NOT send the token. It ignores the field, answers status success with a tx hash, and sends `amount` as yoctoNEAR: the txs below are Transfer{deposit:5000 / 2000 / 2000} actions and the wallet's USDT.e balance did not move. Our first probe read the success as a token transfer; the end-to-end run caught it (payouts reported paid, balances unchanged). Quiet Treasury therefore sends every token payout as an ft_transfer through /call.",
+      "evidence": { "nativeDustTxs": ["DZWckMfTyURkAnfqQvinLSFUM7md51pgNeXz1UeweoUH", "HGNChkKAndJTjLzV6hYdxoZ3TnQMn3pQ7zbSwxs8Ag7g", "FqRnfv6zWF5Xdrj6bgEcE6RF7XumN1XzN6roAK71EcN8"], "note": "the same endpoint refused an unlisted recipient with 403 because it was a NATIVE transfer to an unlisted account (F2), not because it inspected a token" }
+    },
+    {
+      "id": "F4", "result": "NOT ENFORCED (against us)",
+      "claim": "An ft_transfer sent through POST /wallet/v1/call is not inspected: the recipient inside the call arguments is not checked, only the outer contract. A transfer to an account that is not on the whitelist succeeded.",
+      "evidence": { "ftTransferToUnlistedAccountTx": "6qL3FxJqdmhEgFTv6NFbUY5du4Bkm7oXsLfYmbbj1tpF", "policyStoreTx": "3xrbwDZMggK5k75CxMQQg14viRnFEttnJJUjBKftoiu1" },
+      "consequence": "Layer A bounds which contracts the wallet may touch and how much native NEAR may move, but it cannot restrict who receives a token payout. Payout recipients are enforced by Layer B (executor guards + the DAO-approved terms)."
+    },
+    {
+      "id": "F5", "result": "NOT ENFORCED (against us)",
+      "claim": "A per-token amount limit was not enforced for a token sent through /call: with limits.per_transaction[usdt.fakes.testnet] = 1000, an ft_transfer of 5000 went through.",
+      "evidence": { "perTxCapBypassTx": "6HPv2eU119PodesGj6Rbox4hPUk9x9mmPSdmGrxSaFPj", "policyStoreTx": "3xrbwDZMggK5k75CxMQQg14viRnFEttnJJUjBKftoiu1" },
+      "consequence": "Token amounts are bounded by Layer B (price floor, chunk sizes, the budget on the mandate contract). Daily token limits were not retested after F3 (the first daily probe used the native-dust path and proves nothing). Mainnet semantics were not tested."
+    }
+  ],
+  "verifyOnChain": "https://explorer.testnet.near.org/transactions/<hash> for any hash above"
+}

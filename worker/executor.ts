@@ -30,6 +30,8 @@ export interface Deps {
   outlayer: OutLayerPort; chain: ChainPort; state: State; clock: Clock; rng?: Rng; benchmark?: Benchmark; summarize?: Summarizer; log?: Logger;
   /** testnet-real only: pool state read from chain before the first chunk, so the report can state what ONE swap of the same total would have returned */
   poolSnapshot?: (terms: MandateTerms) => Promise<PoolSnap | null>;
+  /** Runs once per mandate after the budget is funded and BEFORE the first trade (OutLayer custody: writes the mandate's wallet policy, Layer A). A throw keeps the mandate in Approved and is retried next tick. */
+  prepare?: (m: OnChainMandate, terms: MandateTerms) => Promise<unknown>;
 }
 
 const big = (s: string | undefined | null) => BigInt(s ?? '0');
@@ -106,6 +108,10 @@ export class Executor {
     if (m.status === 'Approved') {
       if (now * 1e9 > m.end_ns) { await this.d.chain.expire(m.id); this.ev(m.id, 'expired_unfunded', {}); st.setRuntime(m.id, { phase: 'done' }); return; }
       if (!(await this.ensureFunded(m, terms, all))) return;
+      if (this.d.prepare) {
+        try { this.ev(m.id, 'prepared', ((await this.d.prepare(m, terms)) ?? {}) as object); }
+        catch (e) { this.ev(m.id, 'prepare_error', { message: (e as Error).message.slice(0, 200) }); return; }
+      }
       await this.d.chain.markFunded(m.id); this.ev(m.id, 'funded', {});
       return;
     }
@@ -241,7 +247,9 @@ export class Executor {
   private async outlayerError(m: OnChainMandate, e: unknown) {
     const st = this.d.state; const now = this.d.clock.nowS();
     if (e instanceof OutLayerError) {
-      if (e.kind === 'policy_denied' || e.kind === 'wallet_frozen') { st.setRuntime(m.id, { stop_reason: `wallet: ${e.kind}`, next_at: now + 3600 }); this.ev(m.id, 'wallet_blocked', { kind: e.kind }); return; }
+      // an hourly RATE limit in the wallet policy is a pause, not a block: retry after a while (every other policy refusal stays a hard stop)
+      if (e.kind === 'policy_denied' && /rate.?limit|too many (requests|operations)|max_per_hour/i.test(String((e.body as any)?.message ?? ''))) { st.setRuntime(m.id, { next_at: now + 300 }); this.ev(m.id, 'rate_limited', { retryAfterS: 300, via: 'policy', message: String((e.body as any)?.message).slice(0, 160) }); return; }
+      if (e.kind === 'policy_denied' || e.kind === 'wallet_frozen') { st.setRuntime(m.id, { stop_reason: `wallet: ${e.kind}`, next_at: now + 3600 }); this.ev(m.id, 'wallet_blocked', { kind: e.kind, message: String((e.body as any)?.message ?? '').slice(0, 200) }); return; }
       if (e.kind === 'operation_limit_reached') { st.setRuntime(m.id, { next_at: now + (e.retryAfterS ?? 300) }); this.ev(m.id, 'rate_limited', { retryAfterS: e.retryAfterS }); return; }
       if (e.kind === 'confidential_unavailable') { st.setRuntime(m.id, { stop_reason: 'confidential_unavailable', next_at: now + 600 }); this.ev(m.id, 'confidential_unavailable', {}); return; }
     }

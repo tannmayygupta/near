@@ -27,10 +27,10 @@ export class OutLayerWallet {
   get api() { return this.o.api ?? OUTLAYER_TESTNET.api; }
   get contract() { return this.o.contract ?? OUTLAYER_TESTNET.contract; }
 
-  private async req(method: 'GET' | 'POST', path: string, body?: unknown): Promise<any> {
+  private async req(method: 'GET' | 'POST', path: string, body?: unknown, idem?: string): Promise<any> {
     const r = await fetch(`${this.api}${path}`, {
       method,
-      headers: { authorization: `Bearer near:${nearAuthToken(this.o.owner, this.o.seed)}`, ...(body ? { 'content-type': 'application/json' } : {}) },
+      headers: { authorization: `Bearer near:${nearAuthToken(this.o.owner, this.o.seed)}`, ...(body ? { 'content-type': 'application/json' } : {}), ...(idem ? { 'x-idempotency-key': idem } : {}) },
       body: body ? JSON.stringify(body) : undefined,
     });
     const text = await r.text(); let j: any; try { j = JSON.parse(text); } catch { j = { raw: text.slice(0, 300) }; }
@@ -41,7 +41,16 @@ export class OutLayerWallet {
   /** Deterministic wallet for (owner account, seed); created on first use. */
   address(chain = 'near'): Promise<{ wallet_id: string; address: string; public_key: string }> { return this.req('GET', `/wallet/v1/address?chain=${chain}`); }
   balance(chain = 'near'): Promise<{ balance: string }> { return this.req('GET', `/wallet/v1/balance?chain=${chain}`); }
-  transfer(b: { chain?: string; to: string; amount: string }): Promise<any> { return this.req('POST', '/wallet/v1/transfer', { chain: 'near', ...b }); }
+  /** NATIVE NEAR only. (A `token` field is silently ignored by OutLayer and the amount is sent as yoctoNEAR: verified on testnet 2026-11-13. Send tokens with `call` + ft_transfer.) */
+  transfer(b: { chain?: string; to: string; amount: string }, idem?: string): Promise<any> { return this.req('POST', '/wallet/v1/transfer', { chain: 'near', ...b }, idem); }
+  /** Generic contract call signed by the OutLayer TEE wallet (POST /wallet/v1/call). Gas is yoctoGas as a string, deposit yoctoNEAR as a string. */
+  call(b: { receiver_id: string; method_name: string; args?: object; gas?: string; deposit?: string }, idem?: string): Promise<{ request_id: string; status: string; tx_hash?: string; result?: unknown; [k: string]: unknown }> {
+    return this.req('POST', '/wallet/v1/call', { args: {}, gas: '30000000000000', deposit: '0', ...b }, idem);
+  }
+  /** NEP-145 storage registration paid by the wallet (POST /wallet/v1/storage-deposit); idempotent. */
+  storageDeposit(b: { token: string; account_id?: string }): Promise<any> { return this.req('POST', '/wallet/v1/storage-deposit', b); }
+  /** status of a wallet request (used to wait for a pending call) */
+  request(id: string): Promise<any> { return this.req('GET', `/wallet/v1/requests/${encodeURIComponent(id)}`); }
 
   /** Encrypt + sign + store a policy on-chain. `rules` follows https://app.outlayer.ai/docs/agent-custody (Example Policy). */
   async setPolicy(owner: Account, policy: { rules: object; capabilities?: object; approval?: object }, walletId: string): Promise<{ txHash: string; version: number }> {

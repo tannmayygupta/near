@@ -4,7 +4,9 @@
 import { RPC, accountFor, Net } from '../src/near/chain';
 import { OutLayerClient, OUTLAYER_MAINNET } from '../src/near/outlayer';
 import { SimulatedOutLayer } from './adapters/simulated-outlayer';
-import { RefTestnetAdapter } from './adapters/ref-testnet';
+import { RefTestnetAdapter, REF_DEX } from './adapters/ref-testnet';
+import { OutLayerCustodySigner } from './adapters/signers';
+import { MandatePolicy } from './adapters/mandate-policy';
 import { LiveDryRunOutLayer, dryRunDecision } from './adapters/live-dryrun';
 import { createSummarizer } from './summarizer';
 import { OutLayerWallet, layerAVerdict } from '../src/near/outlayer-policy';
@@ -29,11 +31,25 @@ const agent = accountFor(rpc, need('AGENT_ACCOUNT_ID'), need('AGENT_SECRET_KEY')
 // EXEC_MODE: 'live' (default; the real OutLayer client, UNPROVEN with real money) | 'simulated' (testnet adapter; fills are priced from real 1Click dry quotes and are NOT trades)
 const execMode = process.env.EXEC_MODE ?? 'live';
 // 'testnet-real': REAL on-chain testnet execution through Ref Finance (swap, payout, return are real txs; custody = a vault key held by the worker; see worker/adapters/ref-testnet.ts)
-const ref = execMode === 'testnet-real' ? new RefTestnetAdapter({
-  vault: accountFor(rpc, need('VAULT_ACCOUNT_ID'), need('VAULT_SECRET_KEY')), rpc,
-  reserveYocto: BigInt(process.env.VAULT_RESERVE_YOCTO ?? '2000000000000000000000000'), ledgerPath: process.env.REF_LEDGER ?? 'data/ref-ledger.json', log: (k, f) => console.log(JSON.stringify({ t: new Date().toISOString(), kind: `ref_${k}`, ...f })),
+// 'testnet-outlayer': the same real execution, but the vault is an OutLayer agent wallet (key in OutLayer's TEE): every call is signed by OutLayer under a wallet policy
+// the worker writes per mandate before it trades (Layer A). Env: AGENT_ACCOUNT_ID/AGENT_SECRET_KEY (the wallet OWNER), CUSTODY_SEED, optional CUSTODY_POLICIES.
+const refLog = (k: string, f: Record<string, unknown>) => console.log(JSON.stringify({ t: new Date().toISOString(), kind: `ref_${k}`, ...f }));
+const refCommon = {
+  rpc, ledgerPath: process.env.REF_LEDGER ?? 'data/ref-ledger.json', log: refLog,
+  reserveYocto: BigInt(process.env.VAULT_RESERVE_YOCTO ?? '2000000000000000000000000'),
   refPrice: async () => { try { const [w, u] = Object.keys(MAINNET_TOKENS); const q = await dryQuote({ originAsset: w, destinationAsset: u, amount: (10n ** 23n).toString(), recipient: need('SIM_QUOTE_RECIPIENT'), refundTo: need('SIM_QUOTE_RECIPIENT') }); return (Number(BigInt(q.amountOut)) / 1e6) / 0.1; } catch { return null; } },
-}) : null;
+};
+let ref: RefTestnetAdapter | null = null;
+if (execMode === 'testnet-real') ref = new RefTestnetAdapter({ ...refCommon, vault: accountFor(rpc, need('VAULT_ACCOUNT_ID'), need('VAULT_SECRET_KEY')) });
+else if (execMode === 'testnet-outlayer') {
+  const wallet = new OutLayerWallet({ owner: { accountId: need('AGENT_ACCOUNT_ID'), secretKey: need('AGENT_SECRET_KEY') }, seed: need('CUSTODY_SEED') });
+  const addr = await wallet.address();
+  ref = new RefTestnetAdapter({
+    ...refCommon, signer: new OutLayerCustodySigner(wallet, addr.address, rpc),
+    policy: new MandatePolicy({ wallet, owner: agent, walletId: addr.wallet_id, dex: REF_DEX, path: process.env.CUSTODY_POLICIES ?? 'data/custody-policies.json', log: refLog }),
+  });
+  console.log(JSON.stringify({ level: 'info', msg: 'EXEC_MODE=testnet-outlayer: vault is an OutLayer custody wallet', wallet: addr.address }));
+}
 // 'live-dryrun': the live Intents/OutLayer DECISION path (real 1Click dry quotes + planner + price floor) with every money-moving call blocked and no chain writes; see worker/adapters/live-dryrun.ts
 const outlayer: OutLayerPort = ref ? ref : execMode === 'live-dryrun'
   ? new LiveDryRunOutLayer({ recipient: process.env.DRYRUN_RECIPIENT ?? '36842e2f73d0b7b2f2af6e0d94a7a997398c2c09d9cf09ca3fa23b5426fccf88' })
@@ -51,6 +67,7 @@ const ai = process.env.NEAR_AI_API_KEY ? new NearAiClient() : null;
 
 const exec = new Executor({
   outlayer, chain, state, clock, log, summarize: ai ? createSummarizer(ai) : undefined,
+  prepare: ref ? (m, terms) => ref!.prepareMandate(m.id, terms) : undefined, // OutLayer custody: write this mandate's wallet policy before it trades (no-op for the key vault)
   poolSnapshot: ref ? async (terms) => { const s = await ref.poolSnapshot(terms.sellToken, terms.buyToken, BigInt(terms.chunkMax)); return s ? { poolId: s.poolId, reserveIn: s.reserveIn, reserveOut: s.reserveOut, feeBps: s.feeBps, ts: s.ts } : null; } : undefined,
   benchmark: ref ? (terms) => ref.spotSample(terms.sellToken, terms.buyToken, BOUNDS.allowedTokens[terms.sellToken].decimals, BOUNDS.allowedTokens[terms.buyToken].decimals)
     : async (terms, nowS) => quoteToSample(await dryQuote({
@@ -83,7 +100,7 @@ const api = createApi({
     const r = await parseIntent(intent, { dao, treasurer: 'unknown.near', nowS: clock.nowS(), llm: llmFromClient(ai, process.env.PARSE_MODEL ?? 'Qwen/Qwen3.8-27B') }); // confidential TEE model; measured 21s/1 attempt vs glm-5.3-flash 6-170s (erratic reasoning time)
     return { terms: r.terms, summary: r.summary.join('\n') };
   } : undefined,
-  health: () => ({ lastTick, ticking, net, dao, mandateContract, execMode, ...(execMode === 'live-dryrun' ? { dryRun: lastDry } : {}), needsHuman: state.db.prepare("SELECT mandate_id, key, note FROM items WHERE status='needs_review'").all() }),
+  health: () => ({ lastTick, ticking, net, dao, mandateContract, execMode, ...(ref ? { custody: ref.custody, vault: ref.vaultId } : {}), ...(execMode === 'live-dryrun' ? { dryRun: lastDry } : {}), needsHuman: state.db.prepare("SELECT mandate_id, key, note FROM items WHERE status='needs_review'").all() }),
 });
 
 const server = await api.listen(Number(process.env.PORT ?? 8787));

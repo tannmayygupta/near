@@ -2,13 +2,20 @@
   "name": "quiet-treasury",
   "version": "1.0.0",
   "description": "DAO-voted private treasury execution on NEAR",
-  "main": "index.js",
   "directories": {
     "doc": "docs",
     "test": "tests"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "vitest run",
+    "verify": "tsx src/verify/cli.ts data/demo-run/proof-bundle.json && tsx src/verify/cli.ts data/demo-run/sealed-proof-bundle.json && tsx src/verify/cli.ts data/demo-run/custody-proof-bundle.json",
+    "secret-scan": "tsx scripts/dev/secret-scan.ts",
+    "worker": "tsx worker/index.ts",
+    "dashboard": "npm --prefix app run dev",
+    "e2e:real": "tsx --env-file=.env scripts/testnet/e2e-real.ts",
+    "e2e:custody": "tsx --env-file=.env scripts/testnet/e2e-custody.ts",
+    "e2e:sealed": "tsx --env-file=.env scripts/testnet/e2e-sealed.ts",
+    "e2e:restart": "tsx --env-file=.env scripts/testnet/e2e-restart.ts"
   },
   "keywords": [],
   "author": "",

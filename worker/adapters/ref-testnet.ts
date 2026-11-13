@@ -8,9 +8,11 @@
 // MAINNET design and are NOT used on this path. (2) Ref testnet pools are thin and have no arbitrageurs, so chunking does not beat a one-shot swap
 // (a constant-product AMM is path independent); the report shows that comparison instead of claiming a gain.
 // The OutLayerPort method names (confidential*) are kept so the executor is unchanged; on testnet there is no confidentiality.
-import { getTransactionLastResult, actions as nearActions } from 'near-api-js';
 import type { Account } from 'near-api-js';
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { KeySigner, type ChainSigner } from './signers';
+import type { MandatePolicy } from './mandate-policy';
+import type { MandateTerms } from '../../src/engine/schema';
 import { dirname } from 'node:path';
 import { OutLayerError } from '../../src/near/outlayer';
 import type { ActionResponse, QuotePreview, RequestRecord, TerminalStatus } from '../../src/near/outlayer';
@@ -35,7 +37,11 @@ type Stage = 'start' | 'wrapped' | 'swapped' | 'done' | 'refunded';
 interface LedgerEntry { idem: string; kind: 'swap' | 'withdraw'; stage: Stage; pool?: number; swapTx?: string; withdrawTx?: string; wrapTx?: string; amountIn?: string; amountOut?: string; balBefore?: string; requestId?: string; record?: RequestRecord; ts: number }
 
 export interface RefOpts {
-  vault: Account;
+  /** who signs: pass `vault` (a key the worker holds) OR `signer` (e.g. an OutLayer custody wallet) */
+  vault?: Account;
+  signer?: ChainSigner;
+  /** OutLayer custody only: writes the wallet policy (Layer A) for each mandate before it trades */
+  policy?: MandatePolicy;
   rpc: string;
   dex?: string;
   /** native NEAR kept for gas/storage and NOT counted as budget (the DAO funding transfer is what raises the budget above this) */
@@ -54,13 +60,24 @@ export class RefTestnetAdapter implements OutLayerPort {
   private spent = 0n;
   private setupDone = false;
   private cand: { at: number; list: Candidate[]; key: string } | null = null;
+  readonly signer: ChainSigner;
   constructor(private o: RefOpts) {
+    if (!o.signer && !o.vault) throw new Error('RefTestnetAdapter needs a signer or a vault account');
+    this.signer = o.signer ?? new KeySigner(o.vault!);
     this.dex = o.dex ?? REF_DEX;
     if (o.ledgerPath && existsSync(o.ledgerPath)) {
       try { const j = JSON.parse(readFileSync(o.ledgerPath, 'utf8')); this.ledger = j.entries ?? {}; this.spent = BigInt(j.spent ?? '0'); this.setupDone = !!j.setupDone; } catch { this.ledger = {}; }
     }
   }
-  get vaultId() { return this.o.vault.accountId; }
+  get vaultId() { return this.signer.id; }
+  get custody() { return this.signer.kind; }
+  /** Called by the executor once a mandate is funded and BEFORE its first trade: with OutLayer custody this writes the mandate's wallet policy (Layer A). */
+  async prepareMandate(mandateId: number, terms: MandateTerms): Promise<{ policyTx?: string; reused?: boolean }> {
+    if (!this.o.policy) return {};
+    const p = await this.o.policy.ensure(mandateId, terms);
+    if (!p.reused) await new Promise((r) => setTimeout(r, 4000)); // the keystore reads the policy from the chain: give the store tx a moment to be final
+    return { policyTx: p.txHash, reused: p.reused };
+  }
   private log(kind: string, f: Record<string, unknown> = {}) { this.o.log?.(kind, f); }
   private save() { if (!this.o.ledgerPath) return; mkdirSync(dirname(this.o.ledgerPath), { recursive: true }); writeFileSync(this.o.ledgerPath, JSON.stringify({ spent: this.spent.toString(), setupDone: this.setupDone, entries: this.ledger }, null, 2)); }
   private put(e: LedgerEntry) { this.ledger[e.idem] = e; this.save(); return e; }
@@ -70,11 +87,6 @@ export class RefTestnetAdapter implements OutLayerPort {
   private async ftBalance(token: string, account = this.vaultId): Promise<bigint> { return BigInt(await view<string>(this.o.rpc, token, 'ft_balance_of', { account_id: account })); }
   private async registered(token: string, account: string): Promise<boolean> { return (await view<unknown>(this.o.rpc, token, 'storage_balance_of', { account_id: account })) !== null; }
 
-  private burnt(o: any): bigint {
-    let t = BigInt(o.transaction_outcome?.outcome?.tokens_burnt ?? '0');
-    for (const r of o.receipts_outcome ?? []) t += BigInt(r.outcome?.tokens_burnt ?? '0');
-    return t;
-  }
   /** NEAR the vault holds that is DAO-funded budget (not the gas float): native - reserve + everything the vault itself spent on gas/registrations. */
   private async freeNative(): Promise<bigint> {
     const nat = await this.nativeBalance(); const f = nat + this.spent;
@@ -84,21 +96,17 @@ export class RefTestnetAdapter implements OutLayerPort {
     return free > 1_000_000_000_000n ? free + 1_000_000_000_000_000n : free;
   }
   /** cost = part of deposit that is a real expense (storage registration), not budget moving around. */
-  private async call(contract: string, method: string, args: object, gas: bigint, deposit = 0n, cost = 0n) {
-    const o: any = await this.o.vault.callFunctionRaw({ contractId: contract, methodName: method, args, gas, deposit });
-    this.spent += this.burnt(o) + cost; this.save();
-    const logs: string[] = (o.receipts_outcome ?? []).flatMap((r: any) => r.outcome?.logs ?? []);
-    const hash: string = o.transaction?.hash ?? o.transaction_outcome?.id ?? '';
-    let value: unknown; try { value = getTransactionLastResult(o); } catch { value = undefined; }
-    this.log('tx', { contract, method, hash });
-    return { hash, logs, value };
+  private async call(contract: string, method: string, args: object, gas: bigint, deposit = 0n, cost = 0n, idem?: string) {
+    const r = await this.signer.call(contract, method, args, gas, deposit, idem);
+    this.spent += r.burnt + cost; this.save();
+    this.log('tx', { contract, method, hash: r.hash, custody: this.signer.kind });
+    return { hash: r.hash, logs: r.logs, value: r.value };
   }
-  private async sendNative(to: string, amount: bigint) {
-    const o: any = await this.o.vault.signAndSendTransaction({ receiverId: to, actions: [nearActions.transfer(amount)] });
-    this.spent += this.burnt(o); this.save();
-    const hash: string = o.transaction?.hash ?? o.transaction_outcome?.id ?? '';
-    this.log('tx', { contract: to, method: 'transfer', hash });
-    return hash;
+  private async sendNative(to: string, amount: bigint, idem?: string) {
+    const r = await this.signer.sendNative(to, amount, idem);
+    this.spent += r.burnt; this.save();
+    this.log('tx', { contract: to, method: 'transfer', hash: r.hash, custody: this.signer.kind });
+    return r.hash;
   }
 
   /** One-time registrations (idempotent: each step is skipped when already done). */
@@ -197,7 +205,7 @@ export class RefTestnetAdapter implements OutLayerPort {
     if (e.stage === 'start') { // wrap exactly the missing wNEAR (retry-safe: a refunded earlier attempt leaves wNEAR in the vault)
       if (tin === WRAP) {
         const have = await this.ftBalance(WRAP);
-        if (have < amountIn) { const w = await this.call(WRAP, 'near_deposit', {}, TGAS(30), amountIn - have); e = this.put({ ...e, wrapTx: w.hash }); }
+        if (have < amountIn) { const w = await this.call(WRAP, 'near_deposit', {}, TGAS(30), amountIn - have, 0n, `${idem}:wrap`); e = this.put({ ...e, wrapTx: w.hash }); }
       }
       e = this.put({ ...e, stage: 'wrapped' });
     }
@@ -207,7 +215,7 @@ export class RefTestnetAdapter implements OutLayerPort {
       const balBefore = e.balBefore !== undefined ? BigInt(e.balBefore) : await this.ftBalance(tout);
       e = this.put({ ...e, balBefore: balBefore.toString() }); // persisted before the swap so a crash cannot double-count the output
       const msg = JSON.stringify({ force: 0, actions: [{ pool_id: e.pool, token_in: tin, token_out: tout, amount_in: b.amount_in, min_amount_out: b.min_amount_out ?? '0' }] });
-      const s = await this.call(tin, 'ft_transfer_call', { receiver_id: this.dex, amount: b.amount_in, msg }, TGAS(180), ONE_YOCTO);
+      const s = await this.call(tin, 'ft_transfer_call', { receiver_id: this.dex, amount: b.amount_in, msg }, TGAS(180), ONE_YOCTO, 0n, `${idem}:swap`);
       const used = BigInt(typeof s.value === 'string' ? s.value : '0');
       const sw = s.logs.map((l) => l.match(/Swapped (\d+) (\S+) for (\d+) (\S+)/)).find(Boolean);
       const [refAfter, balAfter] = [await refDep(), await this.ftBalance(tout)];
@@ -224,7 +232,7 @@ export class RefTestnetAdapter implements OutLayerPort {
         e = this.put({ ...e, stage: 'done', swapTx: s.hash, withdrawTx: s.hash, amountOut: out.toString(), requestId: s.hash, record: rec });
       }
     }    if (e.stage === 'swapped') { // pull the output from Ref into the vault's own token balance
-      const w = await this.call(this.dex, 'withdraw', { token_id: tout, amount: e.amountOut, unregister: false }, TGAS(100), ONE_YOCTO);
+      const w = await this.call(this.dex, 'withdraw', { token_id: tout, amount: e.amountOut, unregister: false }, TGAS(100), ONE_YOCTO, 0n, `${idem}:withdraw`);
       const rec: RequestRecord = { status: 'success', result: { amount_out: e.amountOut, swap_details: { pool: e.pool, swapTx: e.swapTx, wrapTx: e.wrapTx, withdrawTx: w.hash, destinationChainTxHashes: [w.hash] } } } as RequestRecord;
       e = this.put({ ...e, stage: 'done', withdrawTx: w.hash, record: rec });
     }
@@ -241,11 +249,13 @@ export class RefTestnetAdapter implements OutLayerPort {
     let hash: string;
     if (token === WRAP) { // sell-token leftovers: native NEAR back to the DAO (unwrap held wNEAR first if the native free balance is short)
       const free = await this.freeNative();
-      if (free < amount) { const w = await this.ftBalance(WRAP); const need = amount - free; if (w > 0n) await this.call(WRAP, 'near_withdraw', { amount: (w < need ? w : need).toString() }, TGAS(30), ONE_YOCTO); }
-      hash = await this.sendNative(b.to, amount);
+      if (free < amount) { const w = await this.ftBalance(WRAP); const need = amount - free; if (w > 0n) await this.call(WRAP, 'near_withdraw', { amount: (w < need ? w : need).toString() }, TGAS(30), ONE_YOCTO, 0n, `${idem}:unwrap`); }
+      hash = await this.sendNative(b.to, amount, `${idem}:native`);
     } else {
-      if (!(await this.registered(token, b.to))) await this.call(token, 'storage_deposit', { account_id: b.to, registration_only: true }, TGAS(30), STORAGE_FT, STORAGE_FT);
-      const r = await this.call(token, 'ft_transfer', { receiver_id: b.to, amount: b.amount, memo: `quiet-treasury ${idem}` }, TGAS(30), ONE_YOCTO);
+      if (!(await this.registered(token, b.to))) await this.call(token, 'storage_deposit', { account_id: b.to, registration_only: true }, TGAS(30), STORAGE_FT, STORAGE_FT, `${idem}:reg`);
+      // custody path: POST /wallet/v1/transfer with `token`, the one OutLayer endpoint whose policy check covers the RECIPIENT of a token payout
+      const r = await this.signer.sendToken(token, b.to, amount, `quiet-treasury ${idem}`, `${idem}:ft`);
+      this.spent += r.burnt; this.save(); this.log('tx', { contract: token, method: 'ft_transfer', hash: r.hash, custody: this.signer.kind });
       hash = r.hash;
     }
     const rec: RequestRecord = { status: 'success', result: { swap_details: { destinationChainTxHashes: [hash] } } } as RequestRecord;
