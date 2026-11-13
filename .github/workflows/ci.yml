@@ -48,7 +48,7 @@ jobs:
     name: Rust contract tests
     runs-on: ubuntu-latest
     # same image the contract is built and tested with locally (scripts/build-contract.ps1)
-    container: rust:1.86-bookworm
+    container: rust:1.99.1-bookworm
     steps:
       - uses: actions/checkout@v4
       - run: cargo test --release

@@ -1,6 +1,6 @@
 # Builds + tests the mandate contract inside Docker (no local Rust needed).
 # Output: contracts/mandate/out/mandate.wasm
-param([string]$Image = "rust:1.86-bookworm")
+param([string]$Image = "rust:1.99.1-bookworm")
 $ErrorActionPreference = "Stop"
 $root = Resolve-Path "$PSScriptRoot\.."
 $src = Join-Path $root "contracts\mandate"
