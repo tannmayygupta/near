@@ -23,31 +23,41 @@ const visit = (v: unknown, k: string, f: string) => {
 for (const f of walk('data').filter((x) => x.endsWith('.json') && !x.includes('proof-bundle') && !x.includes('mainnet-'))) { try { visit(JSON.parse(readFileSync(f, 'utf8').replace(/^﻿/, '')), '', f.replaceAll('\\', '/')); } catch { /* not json */ } }
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-async function exists(h: string): Promise<'ok' | 'missing' | 'unknown'> {
-  for (let i = 0; i < 6; i++) {
+// FastNEAR's public transaction index answers batches of hashes (https://tx.test.fastnear.com/v0/transactions); a hash it does not know is simply absent.
+async function lookup(batch: string[]): Promise<Set<string> | null> {
+  for (let i = 0; i < 5; i++) {
     try {
-      const r = await fetch(`https://api-testnet.nearblocks.io/v1/txns/${h}`, { headers: { accept: 'application/json' } });
-      if (r.status === 429) { await sleep(8000 * (i + 1)); continue; }
-      if (!r.ok) { if (r.status === 404) return 'missing'; await sleep(2000); continue; }
+      const r = await fetch('https://tx.test.fastnear.com/v0/transactions', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ tx_hashes: batch }) });
+      if (r.status === 429 || r.status >= 500) { await sleep(3000 * (i + 1)); continue; }
+      if (!r.ok) return null;
       const j: any = await r.json();
-      return Array.isArray(j.txns) && j.txns.length > 0 ? 'ok' : 'missing';
-    } catch { await sleep(3000); }
+      return new Set((j.transactions ?? []).map((t: any) => t?.transaction?.hash).filter(Boolean));
+    } catch { await sleep(2000); }
   }
-  return 'unknown';
+  return null;
+}
+async function nearblocks(h: string): Promise<boolean> {
+  try { const r = await fetch(`https://api-testnet.nearblocks.io/v1/txns/${h}`); if (!r.ok) return false; const j: any = await r.json(); return Array.isArray(j.txns) && j.txns.length > 0; } catch { return false; }
 }
 
 const hashes = [...cited.keys()];
 console.log(`checking ${hashes.length} distinct cited transactions…`);
 const results: Array<{ hash: string; status: string; files: string[] }> = [];
-for (const [i, h] of hashes.entries()) {
-  let s = await exists(h);
-  if (s === 'missing') { await sleep(1500); s = await exists(h); } // one retry: the index can lag
-  results.push({ hash: h, status: s, files: [...cited.get(h)!] });
-  if (s !== 'ok') console.log(`  ${s.toUpperCase()}  ${h}  (${[...cited.get(h)!].join(', ')})`);
-  if ((i + 1) % 25 === 0) console.log(`  …${i + 1}/${hashes.length}`);
-  await sleep(450);
+const BATCH = 20;
+for (let i = 0; i < hashes.length; i += BATCH) {
+  const batch = hashes.slice(i, i + BATCH);
+  const found = await lookup(batch);
+  for (const h of batch) {
+    let s: string;
+    if (found?.has(h)) s = 'ok';
+    else if (await nearblocks(h)) s = 'ok'; // second source before calling anything missing
+    else s = found ? 'missing' : 'unknown';
+    results.push({ hash: h, status: s, files: [...cited.get(h)!] });
+    if (s !== 'ok') console.log(`  ${s.toUpperCase()}  ${h}  (${[...cited.get(h)!].join(', ')})`);
+  }
+  await sleep(500);
 }
 const bad = results.filter((r) => r.status !== 'ok');
-writeFileSync('data/evidence-check.json', JSON.stringify({ checkedAt: new Date().toISOString(), source: 'https://api-testnet.nearblocks.io/v1/txns/<hash>', total: results.length, ok: results.length - bad.length, missing: results.filter((r) => r.status === 'missing').length, unknown: results.filter((r) => r.status === 'unknown').length, notOk: bad }, null, 2));
+writeFileSync('data/evidence-check.json', JSON.stringify({ checkedAt: new Date().toISOString(), source: 'https://tx.test.fastnear.com/v0/transactions (batch), second source https://api-testnet.nearblocks.io/v1/txns/<hash>', total: results.length, ok: results.length - bad.length, missing: results.filter((r) => r.status === 'missing').length, unknown: results.filter((r) => r.status === 'unknown').length, notOk: bad }, null, 2));
 console.log(`\n${results.length - bad.length}/${results.length} cited transactions resolve on public testnet`);
 process.exit(bad.length ? 1 : 0);
