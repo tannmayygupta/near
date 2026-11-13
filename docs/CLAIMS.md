@@ -10,8 +10,8 @@ Legend: **VERIFIED-TESTNET** = reproduced on PUBLIC NEAR testnet by a command in
 | AI Security & Defense | yes | 6 attacks blocked, layer A real 403 `policy_denied` + layer B contract/executor; verifier 13/13 | Layer A on confidential endpoints (mainnet-only) |
 | Privacy & Private AI | yes, scoped | NEAR AI TEE parsing + summary, signed + attested, verifier 13/13, live attestation check | **hidden/confidential execution** (mainnet-only, unproven; copycat page says so) |
 | Real-World Money | yes, scoped | real USDT.e payouts + fee + returns to named accounts, balances checked on-chain, CSV with tx links | **cross-chain payouts** via Intents (mainnet-only, unproven) |
-| Unstoppable DeFi | **no** | swaps are real but on a NEAR testnet DEX (Ref), not Intents; weak evidence + team overlap | - |
-| Open Innovation | **no** | sealed-mandate reveal not demonstrated in the run; team overlap | - |
+| Unstoppable DeFi | yes, scoped | real Ref swaps on testnet + live mainnet 1Click dry quotes for sell and Solana/Base/Arbitrum/Ethereum payout legs + `live-dryrun` decision path (see DeFi evidence below, `docs/DEFI.md`) | **any real Intents/cross-chain settlement** (needs mainnet funds) |
+| Open Innovation | yes | sealed commit-reveal mandate #12 proven on public testnet, independent verifier 21/21 (`docs/SEALED.md`) | **hiding terms from the operator** (worker is not in a TEE) |
 
 ### MAINNET-ONLY AND UNPROVEN (read this first)
 Confidential swaps / hidden trades; OutLayer TEE custody doing the swaps (testnet uses a worker-held vault key); Intents cross-chain payouts (Solana/Base); the DAO funding an agent's Intents balance. Each is implemented behind the `live` execution mode but has **never run with real money**. Testnet tokens have no value. Chunked vs one-shot on the thin testnet pool: about -1.8 bp, i.e. **no price gain is claimed**.
