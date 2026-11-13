@@ -5,7 +5,8 @@
 This file is a map, not evidence. Verify with the commands below; `docs/CLAIMS.md` lists every claim with its status (VERIFIED-TESTNET, LOCAL, SIMULATED, UNVERIFIED, NOT IMPLEMENTED).
 
 ## Run
-- `npm ci && npm test` : 134 unit tests (vitest), no network or keys needed
+- `npm ci && npm test` : 135 unit tests (vitest), no network or keys needed
+- `npm run demo` : the whole story offline (labelled simulation, ~2 s)
 - `npm run verify` : independent verifier over three recorded proof bundles (offline)
 - `npm run secret-scan` : repository secret scan
 - `npm run dashboard` : Next.js dashboard on :3100 (after `npm --prefix app ci`)
@@ -13,6 +14,7 @@ This file is a map, not evidence. Verify with the commands below; `docs/CLAIMS.m
 
 ## Read first
 - `docs/JUDGES.md` : 5-minute path, what is proven and what is not
+- `docs/TRACKS.md` : per-track proof map with a command per claim; `docs/AI_DISCLOSURE.md`
 - `README.md` : per-track explanation, architecture, NEAR technology map
 - `docs/CLAIMS.md` : claims vs evidence
 - `docs/CUSTODY.md` : OutLayer custody wallet, per-mandate policy, what the policy does and does not enforce

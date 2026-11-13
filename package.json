@@ -8,6 +8,7 @@
   },
   "scripts": {
     "test": "vitest run",
+    "demo": "tsx scripts/demo/offline-story.ts",
     "verify": "tsx src/verify/cli.ts data/demo-run/proof-bundle.json && tsx src/verify/cli.ts data/demo-run/sealed-proof-bundle.json && tsx src/verify/cli.ts data/demo-run/custody-proof-bundle.json",
     "secret-scan": "tsx scripts/dev/secret-scan.ts",
     "check:evidence": "tsx scripts/dev/check-evidence.ts",

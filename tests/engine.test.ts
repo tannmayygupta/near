@@ -79,6 +79,14 @@ describe('parser', () => {
     const bad = { ...goodDraft, chunkMin: '0.001', chunkMax: '0.002' };
     await expect(parseIntent(GOOD_TEXT, ctx(llmReturning(JSON.stringify(bad))))).rejects.toBeInstanceOf(ParseError);
   });
+  it('rejects a zero (or non-numeric) price floor: a prompt-injected "sell at any price" must never become a mandate', async () => {
+    for (const minPrice of ['0', '0.0', '0.000']) {
+      const bad = { ...goodDraft, minPrice };
+      await expect(parseIntent(GOOD_TEXT, ctx(llmReturning(JSON.stringify(bad))))).rejects.toBeInstanceOf(ParseError);
+    }
+    const t = MandateTerms.safeParse({ dao: 'club.sputnik-dao.near', treasurer: 'alice.near', sellToken: WNEAR, buyToken: USDC_ID, maxSellAmount: '1000000000000000000000000', minPrice: '0', startTs: NOW, endTs: NOW + 3600, chunkMin: '500000000000000000000000', chunkMax: '1000000000000000000000000', intervalMinS: 60, intervalMaxS: 120, payouts: [], feeBps: 0, returnTo: 'club.sputnik-dao.near', sealed: false });
+    expect(t.success).toBe(false);
+  });
   it('rejects empty intents', async () => {
     await expect(parseIntent('hi', ctx(llmReturning('{}')))).rejects.toMatchObject({ code: 'EMPTY_INTENT' });
   });

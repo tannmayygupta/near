@@ -26,6 +26,7 @@ import { createSummarizer } from '../../worker/summarizer.js';
 import { A, loadConfig, proposeWithHash, voteTx, rec, txs, explorerTx, explorerAccount, sleep } from './lib.js';
 import { mainnetRefPrice } from './vault.js';
 import { ensureCustody } from './custody.js';
+import { scopedAgent, SCOPED_PATH, SCOPED_METHODS } from './scoped-key.js';
 
 const c = loadConfig();
 const pub = JSON.parse(readFileSync('data/testnet-public.json', 'utf8').replace(/^﻿/, ''));
@@ -33,7 +34,7 @@ const layerAEvidence = JSON.parse(readFileSync('data/testnet-layer-a.json', 'utf
 const SELL = 'nep141:wrap.testnet', BUY = 'nep141:usdt.fakes.testnet', USDT = 'usdt.fakes.testnet';
 const results: Array<[string, boolean, string]> = [];
 const check = (n: string, ok: boolean, note = '') => { results.push([n, ok, note]); console.log(ok ? 'PASS' : 'FAIL', n, note); };
-const agent = A(c, 'agent');
+const agent = scopedAgent(c); // the key the worker drives the mandate contract with: a FUNCTION-CALL key limited to its 5 agent methods (scripts/testnet/scoped-key.ts)
 const nowS = () => Math.floor(Date.now() / 1000);
 const nearH = (y: bigint | string) => (Number(BigInt(y) / 10n ** 20n) / 10_000).toString();
 const usdtOf = async (acct: string) => BigInt(await view<string>(c.rpc, USDT, 'ft_balance_of', { account_id: acct }).catch(() => '0'));
@@ -58,6 +59,7 @@ const ref = new RefTestnetAdapter({
   signer: cust.signer, policy: cust.policy, rpc: c.rpc, reserveYocto: vaultReserve, ledgerPath: 'data/secret/ref-ledger-custody.json', refPrice: mainnetRefPrice,
   log: (k, f) => { if (k === 'tx') rec(`outlayer wallet: ${f.contract}.${f.method}`, String(f.hash)); },
 });
+{ const sk = JSON.parse(readFileSync(SCOPED_PATH, 'utf8')); const ak: any = await providerFor(c.rpc).viewAccessKey({ accountId: c.accounts.agent.accountId, publicKey: sk.publicKey } as any).catch(() => null); const fc = ak?.permission?.FunctionCall; check('the worker drives the mandate contract with a FUNCTION-CALL key (not full access): receiver = the mandate contract, only the 5 agent methods', !!fc && fc.receiver_id === c.mandate && SCOPED_METHODS.every((m) => fc.method_names.includes(m)) && fc.method_names.length === SCOPED_METHODS.length, fc ? fc.method_names.join(',') : 'key not found'); }
 check('the vault is an OutLayer custody wallet (implicit account, key in OutLayer TEE), not a key the worker holds', ref.custody === 'outlayer-custody' && /^[0-9a-f]{64}$/.test(VAULT), VAULT.slice(0, 16) + '…');
 console.log('custody wallet', VAULT, 'float', nearH(vaultReserve), 'NEAR | DAO', c.dao);
 
@@ -191,7 +193,7 @@ const layerA = { transfer: (b: { to: string; amount: string }) => cust.wallet.tr
 const rt: any[] = [];
 for (const a of ATTACKS) rt.push(await runAttack(a, id2, { chain, outlayer: ref, termsFor: (mm) => termsFor(state, mm), nowS, layerA }));
 for (const r of rt) console.log(r.blocked ? '  blocked' : '  NOT BLOCKED', r.attack.padEnd(16), r.layer, '|', String(r.error).slice(0, 110));
-check('red-team: all 6 real attacks blocked, each naming its layer', rt.length === 6 && rt.every((r) => r.blocked && /^(A|B)/.test(r.layer)), rt.map((r) => `${r.attack}:${r.layer[0]}`).join(' '));
+check('red-team: all 6 real attacks blocked, each naming its layer', rt.length === 6 && rt.every((r) => r.blocked && /^(0|A|B)/.test(r.layer)), rt.map((r) => `${r.attack}:${r.layer[0]}`).join(' '));
 check('Layer A (OutLayer wallet policy) produced real denials', rt.filter((r) => r.layer.startsWith('A')).length >= 2, rt.filter((r) => r.layer.startsWith('A')).map((r) => r.attack).join(','));
 
 const swapsBeforeCancel = state.chunks(id2).filter((x) => x.status === 'success').length;
@@ -255,7 +257,7 @@ const run = {
   parse: { summary: parsed.summary, attempts: parsed.attempts, warnings: parsed.warnings, overrides, model },
   mandate: mandate1, chunks, ledger, report: reportApi, checks, balances, real,
   cancelRun: { mandate: mandate2, items: items2.map((i) => ({ kind: i.kind, to: i.address, amount: i.amount, status: i.status, tx: i.request_id, explorer: i.request_id ? explorerTx(i.request_id) : null })) },
-  proposals, redteam: rt, layerA: { wallet: { id: cust.walletId, address: VAULT, explorer: explorerAccount(VAULT) }, policies: [pol1, pol2].filter(Boolean).map((p) => ({ mandate: p!.mandateId, storeTx: p!.txHash, explorer: explorerTx(p!.txHash), rules: p!.rules })), probes: custodyProbes, events: policyEvents, note: 'rules are the plaintext the worker submitted; on chain they are stored encrypted' }, txs, verifier: ver,
+  protocolScope: JSON.parse(readFileSync('data/testnet-scoped-key.json', 'utf8')), proposals, redteam: rt, layerA: { wallet: { id: cust.walletId, address: VAULT, explorer: explorerAccount(VAULT) }, policies: [pol1, pol2].filter(Boolean).map((p) => ({ mandate: p!.mandateId, storeTx: p!.txHash, explorer: explorerTx(p!.txHash), rules: p!.rules })), probes: custodyProbes, events: policyEvents, note: 'rules are the plaintext the worker submitted; on chain they are stored encrypted' }, txs, verifier: ver,
   results: results.map(([name, ok, note]) => ({ name, ok, note })),
 };
 writeFileSync('data/demo-run/custody-run.json', JSON.stringify(run, null, 2));

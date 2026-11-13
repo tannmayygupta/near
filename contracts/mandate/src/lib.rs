@@ -325,4 +325,92 @@ mod tests {
         ctx("dao.test", T0); c.set_agent(acc("agent2.test"));
         ctx("agent2.test", T0 + 1); c.mark_funded(0);
     }
+
+    // ---------- property tests: random sequences must never break the invariants ----------
+    use proptest::prelude::*;
+    use std::panic::{catch_unwind, AssertUnwindSafe};
+
+    proptest! {
+        // P1: whatever the agent tries (any amounts, replays, skips), sold never exceeds the budget, chunks counts only accepted records,
+        // and sold is exactly the sum of the accepted amounts.
+        #[test]
+        fn prop_budget_and_chunk_accounting(ops in proptest::collection::vec((0u32..6, 0u128..700), 1..40)) {
+            let mut c = fresh();
+            ctx("agent.test", T0 + 1); c.mark_funded(0);
+            let mut accepted_sum: u128 = 0; let mut accepted: u32 = 0;
+            for (idx_jitter, amt) in ops {
+                let cur = c.get_mandate(0).unwrap().chunks;
+                let idx = cur.saturating_sub(1).saturating_add(idx_jitter); // below, at and above the next index: replays, valid, skips
+                let before = c.get_mandate(0).unwrap();
+                let r = catch_unwind(AssertUnwindSafe(|| c.record_chunk(0, idx, U128(amt))));
+                let after = c.get_mandate(0).unwrap();
+                if r.is_ok() && idx == before.chunks { accepted_sum += amt; accepted += 1; }
+                if r.is_err() { prop_assert_eq!((before.sold.0, before.chunks), (after.sold.0, after.chunks)); } // a rejected call changes nothing
+            }
+            let m = c.get_mandate(0).unwrap();
+            prop_assert!(m.sold.0 <= m.max_sell.0);
+            prop_assert_eq!(m.sold.0, accepted_sum);
+            prop_assert_eq!(m.chunks, accepted);
+        }
+
+        // P2: replaying an already-recorded chunk any number of times is a no-op.
+        #[test]
+        fn prop_replay_is_idempotent(amt in 1u128..1000, replays in 1usize..12) {
+            let mut c = fresh();
+            ctx("agent.test", T0 + 1); c.mark_funded(0);
+            c.record_chunk(0, 0, U128(amt));
+            let snap = c.get_mandate(0).unwrap();
+            for _ in 0..replays { c.record_chunk(0, 0, U128(amt)); }
+            let m = c.get_mandate(0).unwrap();
+            prop_assert_eq!((m.sold.0, m.chunks), (snap.sold.0, snap.chunks));
+        }
+
+        // P3: outside [start, end] no chunk is ever accepted.
+        #[test]
+        fn prop_no_chunk_outside_window(ts in prop_oneof![0u64..T0, (T0 + 10_001)..(T0 * 3)], amt in 1u128..500) {
+            let mut c = fresh();
+            ctx("agent.test", T0 + 1); c.mark_funded(0);
+            ctx("agent.test", ts);
+            let r = catch_unwind(AssertUnwindSafe(|| c.record_chunk(0, 0, U128(amt))));
+            prop_assert!(r.is_err());
+            prop_assert_eq!(c.get_mandate(0).unwrap().chunks, 0);
+        }
+
+        // P4: nobody but the agent can move a mandate forward; nobody but the DAO can create or cancel.
+        #[test]
+        fn prop_only_the_right_accounts_act(name in "[a-z]{3,12}") {
+            prop_assume!(name != "agent" && name != "dao");
+            let who = format!("{}.test", name);
+            let mut c = fresh();
+            ctx("agent.test", T0 + 1); c.mark_funded(0);
+            ctx(&who, T0 + 2);
+            prop_assert!(catch_unwind(AssertUnwindSafe(|| c.record_chunk(0, 0, U128(1)))).is_err());
+            prop_assert!(catch_unwind(AssertUnwindSafe(|| c.begin_settlement(0))).is_err());
+            prop_assert!(catch_unwind(AssertUnwindSafe(|| c.cancel_mandate(0))).is_err());
+            prop_assert!(catch_unwind(AssertUnwindSafe(|| c.set_agent(acc("evil.test")))).is_err());
+            let created = catch_unwind(AssertUnwindSafe(|| { c.create_mandate(acc("alice.test"), HASH.into(), None, "x".into(), U128(1), T0, T0 + 5, "small".into()); }));
+            prop_assert!(created.is_err());
+            prop_assert_eq!(c.get_mandate(0).unwrap().chunks, 0);
+        }
+
+        // P5: trust equals the number of mandates completed with zero violations (never decreases, +1 per clean completion only).
+        #[test]
+        fn prop_trust_counts_clean_completions(violations in proptest::collection::vec(0u32..3, 1..12)) {
+            ctx("dao.test", T0);
+            let mut c = Contract::new(acc("dao.test"), acc("agent.test"));
+            // the mocked storage of a test thread outlives one proptest case, so count relative to the starting trust
+            let base = c.get_trust(acc("alice.test")); let mut clean = 0u32; let mut last = base;
+            for (i, v) in violations.iter().enumerate() {
+                ctx("dao.test", T0);
+                c.create_mandate(acc("alice.test"), HASH.into(), None, "nep141:wrap.near".into(), U128(10), T0, T0 + 10_000, "small".into());
+                ctx("agent.test", T0 + 1);
+                c.mark_funded(i as u64); c.begin_settlement(i as u64); c.complete(i as u64, HASH.into(), *v, None);
+                if *v == 0 { clean += 1; }
+                let t = c.get_trust(acc("alice.test"));
+                prop_assert!(t >= last);
+                last = t;
+            }
+            prop_assert_eq!(c.get_trust(acc("alice.test")), base + clean);
+        }
+    }
 }

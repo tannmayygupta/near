@@ -47,6 +47,23 @@ function CustodyBody({ run }: { run: CustodyRun }) {
         </div>
       ))}
 
+      {run.protocolScope && (
+        <>
+          <h2>Layer 0: the NEAR protocol scopes the worker&rsquo;s key</h2>
+          <p className="lead">The key the worker uses to drive the mandate contract is a function-call access key, not a full-access key: it can call only {run.protocolScope.key.methods.length} methods on one contract, with no deposit. The NEAR protocol refuses anything else before any contract code runs.</p>
+          <div className="card">
+            <div className="row" style={{ marginBottom: 6 }}><strong>Key {run.protocolScope.key.publicKey.slice(0, 20)}…</strong><Src s="chain" />{run.protocolScope.key.addTx && <TxLink hash={run.protocolScope.key.addTx} />}</div>
+            <table><tbody>
+              <tr><td>receiver</td><td className="mono">{run.protocolScope.key.receiver}</td></tr>
+              <tr><td>methods</td><td className="mono">{run.protocolScope.key.methods.join(', ')}</td></tr>
+              <tr><td>allowance</td><td className="mono">{run.protocolScope.key.allowanceNear} NEAR (gas only)</td></tr>
+            </tbody></table>
+            <table style={{ marginTop: 8 }}><thead><tr><th>Attempt with that key</th><th>Result</th><th>NEAR answered</th></tr></thead><tbody>
+              {run.protocolScope.probes.map((p, i) => <tr key={i}><td>{p.name}</td><td>{pill(p.ok, p.result, 'UNEXPECTED')}</td><td className="mono">{p.detail.slice(0, 110)}</td></tr>)}
+            </tbody></table>
+          </div>
+        </>
+      )}
       <h2>3. Attacks against the live wallet</h2>
       <div className="card">
         <div className="row" style={{ marginBottom: 6 }}><strong>Refused by OutLayer before signing</strong><Src s="recorded" /></div>

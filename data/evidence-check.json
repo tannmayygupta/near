@@ -1,8 +1,8 @@
 {
-  "checkedAt": "2026-11-13T17:51:52.970Z",
+  "checkedAt": "2026-11-13T18:49:43.993Z",
   "source": "https://tx.test.fastnear.com/v0/transactions (batch), second source https://api-testnet.nearblocks.io/v1/txns/<hash>",
-  "total": 186,
-  "ok": 186,
+  "total": 184,
+  "ok": 184,
   "missing": 0,
   "unknown": 0,
   "notOk": []

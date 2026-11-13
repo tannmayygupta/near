@@ -6,7 +6,7 @@ Legend: **VERIFIED-TESTNET** = reproduced on PUBLIC NEAR testnet by a command in
 | Track | Claimed | Evidence | Deliberately NOT claimed |
 |---|---|---|---|
 | Social Money (main) | yes | real Sputnik proposals/votes/funding Transfer/cancel; near.social posts + DAO-voted post; reputation on the contract mirrored to named accounts; dashboard checked in a real browser (`data/demo-run/run.json`, `data/testnet-social.json`) | wallet-signed proposal creation from the wizard (no human wallet in the test) |
-| Autonomous Business | yes | 29/29 run (key vault) and 35/35 run (OutLayer custody): no human action after the funding vote until the anchored report; real fee/payouts/returns; DAO-cancel kill switch with real return of funds; **live crash-restart 12/12** (worker killed right after a real swap landed, a new worker finished without swapping it twice: `data/demo-run/restart-run.json`) | nothing on mainnet |
+| Autonomous Business | yes | 29/29 run (key vault) and 36/36 run (OutLayer custody): no human action after the funding vote until the anchored report; real fee/payouts/returns; DAO-cancel kill switch with real return of funds; **live crash-restart 12/12** (worker killed right after a real swap landed, a new worker finished without swapping it twice: `data/demo-run/restart-run.json`) | nothing on mainnet |
 | AI Security & Defense | yes | 6 attacks blocked in both runs, Layer A = OutLayer wallet policy **written by the worker per mandate** (real 403 `policy_denied`) + Layer B contract/executor; verifier 13/13. Layer A's limits are probed and stated: it checks contracts and native NEAR, **not** token recipients or token amounts (`docs/CUSTODY.md`, `data/testnet-outlayer-findings.json`) | Layer A on confidential endpoints (mainnet-only) |
 | Privacy & Private AI | yes, scoped | NEAR AI TEE parsing + summary, signed + attested, verifier 13/13, live attestation check | **hidden/confidential execution** (mainnet-only, unproven; copycat page says so) |
 | Real-World Money | yes, scoped | real USDT.e payouts + fee + returns to named accounts, balances checked on-chain, CSV with tx links | **cross-chain payouts** via Intents (mainnet-only, unproven) |
@@ -32,7 +32,14 @@ Recorded 2026-11-12 on PUBLIC NEAR testnet; every row has a transaction hash in 
 | **Custody on THIS run (`run.json`)** | a vault key held by the worker (`vault.qtagent-68669.testnet`). The OutLayer-custody run is the next section. No confidentiality on testnet. |
 | Confidential swaps/withdraws, Intents cross-chain payouts, DAO `Transfer` with `msg` into an Intents balance | **MAINNET-ONLY, UNVERIFIED** (gates G3, G5, G6) |
 
-## OutLayer custody run: `EXEC_MODE=testnet-outlayer` (`npm run e2e:custody`, 35/35) - added 2026-11-13
+## Protocol-level key scoping (Layer 0) - added 2026-11-14
+| Claim | Status | Evidence |
+|---|---|---|
+| The key the worker drives the mandate contract with is a NEAR function-call access key (receiver = the mandate contract, 5 agent methods, no deposit, 2 NEAR gas allowance); the NEAR protocol itself refuses `create_mandate`, `set_agent`, calls to other contracts, native transfers and any deposit | VERIFIED-TESTNET | `scripts/testnet/scoped-key.ts`, `data/testnet-scoped-key.json` (add-key tx + 6 probes with NEAR's own error text), `custody-run.json` (`protocolScope`, red-team `non_dao_create` at layer 0, check 3 of 36) |
+| The key cannot write OutLayer wallet policies (needs a deposit): the policy owner is a separate full-access credential (`CUSTODY_OWNER_KEY`) | VERIFIED-TESTNET (by design) | `worker/index.ts`, `data/testnet-scoped-key.json` probe "allowed method with an attached deposit" |
+| A zero price floor can no longer become a mandate (the schema accepted `minPrice: "0"` until 2026-11-14) | FIXED + unit-tested | `src/engine/schema.ts`, `tests/engine.test.ts` |
+
+## OutLayer custody run: `EXEC_MODE=testnet-outlayer` (`npm run e2e:custody`, 36/36) - added 2026-11-13
 Recorded 2026-11-13 on PUBLIC NEAR testnet in `data/demo-run/custody-run.json` (proof bundle `custody-proof-bundle.json`, verifier 13/13). Details and the probes behind it: `docs/CUSTODY.md`.
 | Claim | Status | Evidence |
 |---|---|---|
@@ -52,7 +59,7 @@ The previous run (`run-simulated.json`, `proof-bundle-simulated.json`) used `EXE
 | Claim | Status | Evidence |
 |---|---|---|
 | Real Sputnik DAO votes create/cancel mandates; 1 of 3 votes does nothing, 2 of 3 executes | VERIFIED-TESTNET (also LOCAL) | `scripts/testnet/dao-flow.ts` (8/8, tx hashes printed); `scripts/sandbox/dao-flow.ts` (9/9) |
-| Non-DAO callers cannot create mandates; agent cannot exceed budget or act after cancel | VERIFIED-TESTNET | same + 16 contract unit tests. NOTE: the release wasm reports a generic `unreachable` trap, not the require! message |
+| Non-DAO callers cannot create mandates; agent cannot exceed budget or act after cancel | VERIFIED-TESTNET | same + 21 contract tests (16 unit + 5 property tests). NOTE: the release wasm reports a generic `unreachable` trap, not the require! message |
 | **Whole flow with REAL money movement: AI parse -> DAO vote -> DAO Transfer funds the vault -> worker swaps on Ref -> payouts/fee/leftover returns -> signed summary -> anchored report -> verifier; second mandate cancelled mid-run with real returns** | **VERIFIED-TESTNET (real swaps, payouts, returns)** | `scripts/testnet/e2e-real.ts` 29/29; `data/demo-run/run.json` (`mode: testnet-real`, `real.swaps`, `real.payouts`); [create_mandate proposal](https://explorer.testnet.near.org/transactions/6Z1enRGHqfpHtVWjVVDdYQQwjhFWtvabvr381RtTVPY6), [funding Transfer proposal](https://explorer.testnet.near.org/transactions/EdKYXFLoYpQiUAmyPd9nRaZmBd4Jhb6jmHBZbw5PWq36), [funding executes (vote 2/3)](https://explorer.testnet.near.org/transactions/Myy7nEZhAhP3SUBSB3vSD7XKio1At8UFYyPhtnW5cma), [first swap](https://explorer.testnet.near.org/transactions/EL2WhifXaNvx71FPyUTuNJX4XajThDnTww3wSBQixsq9), [alice payout](https://explorer.testnet.near.org/transactions/FDLQ3ckR1vaoMG7xSSLeT37BSjrbXWhzAMhRGromnwxy), [report anchored (#9)](https://explorer.testnet.near.org/transactions/Euvz3HaJmEpU8cM87LHJn7HxjjbQE7ySgEGy75PBo89b), [DAO cancel executes](https://explorer.testnet.near.org/transactions/7J6kTGdY2gfRcoEM8rj4Fi2Lq3GontgAfkBsK3xSCx2Y) |
 | Chunked selling does NOT beat one swap in this pool (honest result): the report compares realised proceeds with what ONE swap of the same total would have returned from the same pool state (-1 bp in the recorded run, i.e. about the fee) | VERIFIED-TESTNET | `real.oneShot` in `data/demo-run/run.json`; a constant-product AMM is path independent, test `tests/testnet-real.test.ts`. The mandate's value on mainnet is hiding the schedule (unproven), not AMM math |
 | Same flow with SIMULATED fills (older run) | VERIFIED-TESTNET with SIMULATED fills | `scripts/testnet/e2e.ts` 20/20; `data/demo-run/run-simulated.json` |
@@ -61,7 +68,7 @@ The previous run (`run-simulated.json`, `proof-bundle-simulated.json`) used `EXE
 | **G13: an OutLayer wallet policy CAN be set programmatically** by an owner NEAR key (encrypt-policy -> sign-policy -> `store_wallet_policy` on `outlayer.testnet`) | VERIFIED-TESTNET | `src/near/outlayer-policy.ts`, `scripts/testnet/layer-a.ts`, `data/testnet-layer-a.json` |
 | Layer A blocks attacks for real: unlisted destination and over-cap transfer return 403 `policy_denied` | VERIFIED-TESTNET (native NEAR transfers through the same policy engine) | `data/testnet-layer-a.json`, red-team `unlisted_payout` + `over_cap` in `data/demo-run/run.json` |
 | Layer B blocks the other attacks (executor guards + mandate contract) | VERIFIED-TESTNET | red-team results in `data/demo-run/run.json` |
-| Worker logic: tiers, floors, idempotent chunks, crash resume, cancel mid-run, payouts, leftover sweep, anchored report | VERIFIED (134 unit tests in total) + LOCAL e2e | `npx vitest run`, `scripts/sandbox/worker-e2e.ts` |
+| Worker logic: tiers, floors, idempotent chunks, crash resume, cancel mid-run, payouts, leftover sweep, anchored report | VERIFIED (135 unit tests in total) + LOCAL e2e | `npx vitest run`, `scripts/sandbox/worker-e2e.ts` |
 | Intent parser rejects prompt-injection and out-of-bounds terms | VERIFIED (unit tests) | `tests/engine.test.ts` |
 | OutLayer confidential swap QUOTE works for a fresh wallet | VERIFIED (read-only live call, 2026-11-11) | `scripts/outlayer-readonly-check.ts` |
 | Dashboard builds; all 13 routes serve; data layer reads real testnet chain state | VERIFIED | `cd app && npm run build`; smoke check in the testnet run notes |

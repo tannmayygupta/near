@@ -24,13 +24,19 @@ export const ATTACKS = ['over_budget', 'wrong_token', 'after_expiry', 'unlisted_
 export type Attack = (typeof ATTACKS)[number];
 
 const res = (attack: string, blocked: boolean, layer: string, error: string, status: number | null = null, requestId: string | null = null): RedteamResult => ({ attack, blocked, layer, status, error, requestId });
+/** NEAR protocol refusals of a restricted access key (wording as observed on testnet). */
+export const PROTOCOL_REFUSAL = /does not allow method|does not match transaction receiver|requires full access|Deposit is not allowed|MethodNameMismatch|ReceiverMismatch|RequiresFullAccess|DepositWithFunctionCall/i;
 const msg = (e: unknown) => (e as Error).message.replace(/\s+/g, ' ').slice(0, 320);
 
 export async function runAttack(attack: string, mandateId: number | undefined, d: RedteamDeps): Promise<RedteamResult> {
   if (!(ATTACKS as readonly string[]).includes(attack)) return res(attack, false, 'n/a', `unknown attack ${attack}`);
   if (attack === 'non_dao_create') {
     try { await d.chain.attackCreateAsAgent(); return res(attack, false, 'none', 'create_mandate by a non-DAO account SUCCEEDED'); }
-    catch (e) { return res(attack, true, 'B (mandate contract)', msg(e), null); }
+    catch (e) {
+      // with a function-call key limited to the agent methods, the NEAR PROTOCOL refuses create_mandate before the contract runs (layer 0)
+      const protocol = PROTOCOL_REFUSAL.test(msg(e));
+      return res(attack, true, protocol ? '0 (NEAR protocol: function-call key scope)' : 'B (mandate contract)', msg(e), null);
+    }
   }
   const all = await d.chain.listMandates();
   const m = mandateId !== undefined ? all.find((x) => x.id === mandateId) : [...all].reverse().find((x) => x.status === 'Executing' || x.status === 'Funded') ?? all[all.length - 1];

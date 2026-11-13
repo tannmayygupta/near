@@ -42,11 +42,14 @@ const refCommon = {
 let ref: RefTestnetAdapter | null = null;
 if (execMode === 'testnet-real') ref = new RefTestnetAdapter({ ...refCommon, vault: accountFor(rpc, need('VAULT_ACCOUNT_ID'), need('VAULT_SECRET_KEY')) });
 else if (execMode === 'testnet-outlayer') {
-  const wallet = new OutLayerWallet({ owner: { accountId: need('AGENT_ACCOUNT_ID'), secretKey: need('AGENT_SECRET_KEY') }, seed: need('CUSTODY_SEED') });
+  // Two credentials on purpose: AGENT_SECRET_KEY can be a function-call key limited to the mandate contract's agent methods (scripts/testnet/scoped-key.ts:
+  // the NEAR protocol refuses everything else), while writing a wallet policy needs a deposit, so the wallet OWNER credential is separate (CUSTODY_OWNER_KEY).
+  const ownerKey = process.env.CUSTODY_OWNER_KEY ?? need('AGENT_SECRET_KEY');
+  const wallet = new OutLayerWallet({ owner: { accountId: need('AGENT_ACCOUNT_ID'), secretKey: ownerKey }, seed: need('CUSTODY_SEED') });
   const addr = await wallet.address();
   ref = new RefTestnetAdapter({
     ...refCommon, signer: new OutLayerCustodySigner(wallet, addr.address, rpc),
-    policy: new MandatePolicy({ wallet, owner: agent, walletId: addr.wallet_id, dex: REF_DEX, path: process.env.CUSTODY_POLICIES ?? 'data/custody-policies.json', log: refLog }),
+    policy: new MandatePolicy({ wallet, owner: accountFor(rpc, need('AGENT_ACCOUNT_ID'), ownerKey), walletId: addr.wallet_id, dex: REF_DEX, path: process.env.CUSTODY_POLICIES ?? 'data/custody-policies.json', log: refLog }),
   });
   console.log(JSON.stringify({ level: 'info', msg: 'EXEC_MODE=testnet-outlayer: vault is an OutLayer custody wallet', wallet: addr.address }));
 }

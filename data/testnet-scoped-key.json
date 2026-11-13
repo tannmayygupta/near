@@ -1,0 +1,73 @@
+{
+  "network": "testnet",
+  "recordedAt": "2026-11-13T18:27:46.214Z",
+  "account": "qtagent-68669.testnet",
+  "mandateContract": "qtmandate-83872.testnet",
+  "key": {
+    "publicKey": "ed25519:5gfMvJ21WmaJ9SrWQKiXT1QLx8GeH4AfNRbfm3CgbuHw",
+    "kind": "function-call access key",
+    "receiver": "qtmandate-83872.testnet",
+    "methods": [
+      "mark_funded",
+      "record_chunk",
+      "begin_settlement",
+      "complete",
+      "expire"
+    ],
+    "allowanceNear": "2",
+    "addTx": "F7mE17ppgScc9kXWyDUjeFwGPzmaU3FUhij5guuz4yoG",
+    "explorer": "https://explorer.testnet.near.org/transactions/F7mE17ppgScc9kXWyDUjeFwGPzmaU3FUhij5guuz4yoG"
+  },
+  "note": "The worker signs its mandate-contract calls with this key. The NEAR protocol refuses everything outside receiver/methods/no-deposit before contract code runs. The key CANNOT write OutLayer wallet policies (that needs a deposit): the policy owner is a separate full-access credential.",
+  "probes": [
+    {
+      "name": "allowed method on the mandate contract (record_chunk on an unknown mandate): the protocol lets it through, the contract rejects the bad id",
+      "expect": "reaches-contract",
+      "layer": "B (contract)",
+      "result": "reached the contract, contract rejected",
+      "ok": true,
+      "detail": "WebAssembly trap: An `unreachable` opcode was executed."
+    },
+    {
+      "name": "DAO-only method create_mandate with the agent key",
+      "expect": "protocol-refusal",
+      "layer": "0 (NEAR protocol)",
+      "result": "refused by the NEAR protocol",
+      "ok": true,
+      "detail": "Access key does not allow method create_mandate"
+    },
+    {
+      "name": "DAO-only method set_agent (hand the agent role to someone else) with the agent key",
+      "expect": "protocol-refusal",
+      "layer": "0 (NEAR protocol)",
+      "result": "refused by the NEAR protocol",
+      "ok": true,
+      "detail": "Access key does not allow method set_agent"
+    },
+    {
+      "name": "call a DIFFERENT contract (wrap.testnet near_deposit)",
+      "expect": "protocol-refusal",
+      "layer": "0 (NEAR protocol)",
+      "result": "refused by the NEAR protocol",
+      "ok": true,
+      "detail": "Access key receiver qtmandate-83872.testnet does not match transaction receiver wrap.testnet"
+    },
+    {
+      "name": "native NEAR transfer to another account",
+      "expect": "protocol-refusal",
+      "layer": "0 (NEAR protocol)",
+      "result": "refused by the NEAR protocol",
+      "ok": true,
+      "detail": "Access key requires full access"
+    },
+    {
+      "name": "allowed method with an attached deposit",
+      "expect": "protocol-refusal",
+      "layer": "0 (NEAR protocol)",
+      "result": "refused by the NEAR protocol",
+      "ok": true,
+      "detail": "Deposit is not allowed with function call"
+    }
+  ],
+  "allPassed": true
+}

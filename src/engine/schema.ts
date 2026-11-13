@@ -54,7 +54,7 @@ export const MandateTerms = z
     sellToken: z.string(),
     buyToken: z.string(),
     maxSellAmount: uint,
-    minPrice: decimal, // floor: buy-token units (human) per 1 sell-token (human)
+    minPrice: decimal.refine((v) => Number(v) > 0 && Number.isFinite(Number(v)), 'price floor must be greater than zero (a zero floor would mean "sell at any price")'), // floor: buy-token units (human) per 1 sell-token (human)
     startTs: z.number().int().positive(), // unix seconds
     endTs: z.number().int().positive(),
     chunkMin: uint,

@@ -17,6 +17,7 @@ import type { ChainSigner, SignedCall } from '../../worker/adapters/signers.js';
 import { A, loadConfig, proposeWithHash, voteTx, rec, txs, explorerTx, sleep } from './lib.js';
 import { mainnetRefPrice } from './vault.js';
 import { ensureCustody } from './custody.js';
+import { scopedAgent } from './scoped-key.js';
 
 const c = loadConfig();
 const SELL = 'nep141:wrap.testnet', BUY = 'nep141:usdt.fakes.testnet', USDT = 'usdt.fakes.testnet';
@@ -59,7 +60,7 @@ const crashing = new CrashingSigner(cust.signer);
 const boot = (signer: ChainSigner) => {
   const ref = new RefTestnetAdapter({ signer, policy: cust.policy, rpc: c.rpc, reserveYocto: reserve, ledgerPath: LEDGER, refPrice: mainnetRefPrice, log: (k, f) => { if (k === 'tx') rec(`outlayer wallet: ${f.contract}.${f.method}`, String(f.hash)); } });
   const state = new State(STATE_DB, Buffer.alloc(32, 7));
-  const chain = new (class extends RealChain { listMandates() { return super.listMandates().then((l) => l.filter((mm) => mm.id >= fromId)); } })({ rpc: c.rpc, mandateContract: c.mandate, dao: c.dao, agent: A(c, 'agent') });
+  const chain = new (class extends RealChain { listMandates() { return super.listMandates().then((l) => l.filter((mm) => mm.id >= fromId)); } })({ rpc: c.rpc, mandateContract: c.mandate, dao: c.dao, agent: scopedAgent(c) });
   const exec = new Executor({
     outlayer: ref, chain, state, clock: { nowS, sleep }, log: (k, f) => { if (!['chunk_submitted', 'awaiting_approval'].includes(k)) console.log('  [worker]', k, JSON.stringify(f).slice(0, 170)); },
     benchmark: (terms) => ref.spotSample(terms.sellToken, terms.buyToken, 24, 6),

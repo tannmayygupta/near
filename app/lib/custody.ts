@@ -8,6 +8,7 @@ export type CustodyRun = {
   recordedAt: string; network: string; custody: string; note: string;
   ids: { dao: string; mandateContract: string; vault: string };
   layerA: { wallet: { id: string; address: string; explorer: string }; policies: CustodyPolicy[]; probes: { name: string; blocked: boolean; status?: number | null; detail: string }[]; note: string };
+  protocolScope?: { account: string; key: { publicKey: string; receiver: string; methods: string[]; allowanceNear: string; addTx: string; explorer: string | null }; probes: { name: string; expect: string; layer: string; result: string; ok: boolean; detail: string }[]; note: string };
   redteam: { attack: string; blocked: boolean; layer: string; error: string }[];
   real: { swaps: { index: number; tx: string; explorer: string; in: string; out: string }[]; payouts: { kind: string; label: string; to: string; amount: string; status: string; tx: string; explorer: string | null }[] };
   txs: { label: string; txHash: string }[];
