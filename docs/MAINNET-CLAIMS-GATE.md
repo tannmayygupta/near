@@ -27,7 +27,7 @@ Headline wording that is true today: **"Everything works end to end on public NE
 9. That the contract is **immutable or locked** (it is not deployed, and locking is optional and irreversible).
 10. That **sealed terms are hidden from the operator** (they are not).
 11. A **price benefit from chunking** (the report says -1 bp on the thin pool).
-12. The **prize address**: `docs/submission.md` still holds `PLACEHOLDER` for the NEAR mainnet account that receives the prize; that is yours to fill and is separate from deploying anything.
+12. Anything about the **prize account**: it is a payout address given on the submission forms, not a deployed component, and says nothing about mainnet activity.
 
 ## 3. Audit of what we already say
 Searched every mainnet mention in `README.md`, `llms.txt`, `docs/submission.md`, `docs/TRACKS.md`, `docs/CLAIMS.md`, `docs/JUDGES.md` and `SECURITY.md` (about 70 lines). **None claims mainnet execution**; each either says "testnet", "no mainnet funds", "not proven" or "quoted only" (for example README lines 14, 23, 40, 197; submission lines 14, 17, 43, 73, 102, 120; CLAIMS lines 16-17, 95-97, 123-124; JUDGES line 57; SECURITY line 36). The new landing page and `/mainnet` say the same. So **the submission as written has no mainnet claim that needs removing**. The risk is in what gets added later: do not add a mainnet sentence before section 5's conditions hold.
