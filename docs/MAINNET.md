@@ -33,7 +33,7 @@ Use the real NEAR price of the day to convert (about US$3.3 per NEAR on the Ref 
 ## Before you start
 0. `$env:QT_SECRET_DIR='D:\qt-secrets'` (or any folder outside OneDrive), then `npm run mainnet:preflight`. It lists, without printing any key, what is missing.
 1. A **named** mainnet account (for example `yourname.near`; sub-accounts cannot be created under a 64-hex implicit account) with at least 16 NEAR.
-2. Put its id and full-access secret key in `.env` (git-ignored). Never paste the key into a chat, an issue or a commit:
+2. Give the scripts its id and full-access secret key. **Do not write the key into `.env` while this repository sits inside OneDrive/Dropbox/iCloud** (the file would be uploaded; the preflight refuses it). Set it only in the shell of the command, for example `$env:QT_FUNDER_ACCOUNT='yourname.near'; $env:QT_FUNDER_KEY='ed25519:...'`, and close the shell afterwards. Never paste the key into a chat, an issue or a commit. If your `.env` is outside a synchronised folder, this also works:
    ```
    QT_FUNDER_ACCOUNT=yourname.near
    QT_FUNDER_KEY=ed25519:...

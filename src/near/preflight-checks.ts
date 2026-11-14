@@ -18,6 +18,8 @@ export interface PreflightDeps {
   secretDir: SecretDirReport; secretDirWritable: boolean | null;
   git: { envIgnored: boolean | null; trackedSecretLike: string[]; secretDirIgnored: boolean | null };
   envFileText: string;
+  /** true when the .env file itself sits inside a cloud-synchronised folder */
+  envFileSynced: boolean;
   /** the minimum the setup script itself insists on (LIMITS.setupNear), in yocto */
   setupMinimum: bigint;
 }
@@ -71,6 +73,7 @@ export async function runPreflight(d: PreflightDeps): Promise<{ checks: Prefligh
   }
   warn('NEAR_AI_API_KEY is set (needed by the end-to-end run, not by setup)', !!d.env.NEAR_AI_API_KEY?.trim(), d.env.NEAR_AI_API_KEY?.trim() ? 'set (value not shown)' : 'missing');
   fail('ALLOW_MAINNET is not stored in .env', !envFileSetsAllowMainnet(d.envFileText), envFileSetsAllowMainnet(d.envFileText) ? '.env contains ALLOW_MAINNET: remove it; consent belongs in the shell of the command' : 'consent is not stored in a file');
+  { const keyInEnvFile = /^\s*(export\s+)?QT_FUNDER_KEY\s*=\s*\S+/m.test(d.envFileText); fail('the owner key is not stored in a .env that a cloud drive synchronises', !(keyInEnvFile && d.envFileSynced), keyInEnvFile && d.envFileSynced ? 'QT_FUNDER_KEY is written in a .env inside a synchronised folder (it would be uploaded). Remove it from .env and set it only in the shell of the command: $env:QT_FUNDER_KEY=...' : keyInEnvFile ? '.env holds the key but is not in a synchronised folder' : 'the key is not in .env (set it in the shell)'); }
   fail('QT_NET does not point the scripts at the wrong network', (d.env.QT_NET ?? 'mainnet') === d.net || d.net === 'testnet', `QT_NET=${d.env.QT_NET ?? '(unset: scripts default to mainnet)'}`);
 
   // ---- owner on chain

@@ -1,5 +1,8 @@
 # Mainnet release audit (Phase 2.5)
 
+> **Superseded in part (final gate, same day):** the DAO factory deposit was investigated against the factory source and live mainnet data, the escalate-to-9-NEAR retry was removed and a balance gate was added. The 17/19 NEAR advice and the "UNVERIFIED" factory deposit below are replaced by `docs/MAINNET-DEPLOYMENT-PLAN.md`.
+
+
 Nothing in this document was executed on mainnet. Every figure is either computed from the repository's own code, measured on the public testnet rehearsal, or read from public RPC with a read-only call. What could not be verified is marked **UNVERIFIED**.
 
 ## 1. Account-by-account funding (from `src/near/setup-plan.ts`, the table `setup.ts` and `preflight` both use)
@@ -16,12 +19,12 @@ There are **eight sub-accounts of the owner**, plus the DAO account, plus the va
 | 6 | `qt-bob.<owner>` | owner | 0.050 | ~0.002 | ~0.048 | payee |
 | 7 | `qt-fee.<owner>` | owner | 0.050 | ~0.002 | ~0.048 | receives the 0.5% service fee |
 | 8 | `qt-mandate.<owner>` | owner | **4.300** | **~3.692** (369,245 bytes x 1e19 yocto) + ~0.002 account + contract state | **~0.60** | the mandate contract |
-| 9 | `quietdao-<5 digits>.sputnik-dao.near` | owner, via the factory `create` | **6.000** (**UNVERIFIED**: see below) | factory-managed | becomes the DAO treasury | Sputnik DAO, council = accounts 1-3, 2 of 3 to pass |
+| 9 | `quietdao-<5 digits>.sputnik-dao.near` | owner, via the factory `create` | **6.000** (a chosen treasury, not a protocol minimum: see MAINNET-DEPLOYMENT-PLAN.md) | factory-managed | becomes the DAO treasury | Sputnik DAO, council = accounts 1-3, 2 of 3 to pass |
 | 10 | `vault.qt-agent.<owner>` | **the agent account** | 1.500 | ~0.002 | ~1.498 | key-held vault: receives the 0.6 NEAR budget from the DAO, signs swaps and payouts |
 
 Owner outflow = sub-accounts **9.150** (4.850 + 4.300) + DAO **6.000** = **15.150 NEAR**. Gas measured on the fresh testnet rehearsal: owner balance 19.700 -> 4.478 = 15.222 NEAR, so **gas and fees measured = 0.072 NEAR** (the script's estimate is 0.2).
 
-**Minimum owner balance.** Computed: 15.150 + 0.2 (gas, estimate) + 0.1 (owner's own storage and a little gas) = **15.45**. The script itself refuses to start below **16**. **Recommended: hold at least 17 NEAR.** If the mainnet factory demands more than 6 NEAR, `setup.ts` re-tries with the amount in the factory's error message, capped at 9, which would raise the outflow to 18.15 (about 18.45 with gas and reserve): hold **19 NEAR** to be safe against that. The factory exposes no minimum-deposit view on mainnet (read-only check: `get_min_attached_balance` does not exist), so 6 NEAR is **UNVERIFIED** until the first attempt.
+**Minimum owner balance.** Superseded by `docs/MAINNET-DEPLOYMENT-PLAN.md` section 2: planned transfers 15.150; gate 15.450; script minimum 16; recommended to hold 16.5. The earlier "up to 9 NEAR" escalation was removed, so there is no 18.45 worst case any more. The factory has no minimum deposit (source and live data reviewed); 6 NEAR is a generous treasury choice.
 
 **Expected balances after a successful e2e (estimates).** DAO ~5.4 NEAR + a share of leftover USDC (6.0 - 0.6 sold + any returns; proposal bonds are refunded); council1 ~1.99; council2/3 ~0.39; agent ~0.39; vault ~1.43-1.47 (1.5 float - Ref and token storage registrations of about 0.025 - gas); alice/bob/fee ~0.048 each plus their USDC. The 0.6 NEAR sold becomes USDC paid to alice (50%), bob (20%), the fee account (0.5%) and the DAO (remainder).
 
@@ -73,12 +76,12 @@ Limits of this result: it shows the build is **deterministic here and equals the
 
 * HEAD `a44bfbc` (UI redesign) on top of `35de66a` (mainnet hardening), on top of `origin/main` = `bca7fd9`. **Two commits ahead; neither has ever been pushed**, so **no CI run exists for `35de66a`** (the last CI run, success, is for `bca7fd9`). I will not claim CI for `35de66a`.
 * Working tree: clean except the untracked `image.png`, which is intentionally never committed (this audit adds `docs/MAINNET-RELEASE-AUDIT.md`, committed locally).
-* What CI will run on that commit (`.github/workflows/ci.yml`): `npm ci`, `npm test` (all 384 tests, including the deployment-sequence, secret-dir, preflight, verify and method-inventory tests), `npm run verify`, `npm run secret-scan`; the dashboard static build; Rust `cargo test --release` and `--features migrate` in the same image.
-* Local equivalents run today on this tree: 384/384 unit tests; verifier 13+21+16; secret scan 0 findings; the Rust tests in the pinned image (36 and 37) as above; the dashboard typecheck and static export. These are not CI evidence, they are the same commands.
+* What CI will run on that commit (`.github/workflows/ci.yml`): `npm ci`, `npm test` (all 396 tests, including the deployment-sequence, secret-dir, preflight, verify and method-inventory tests), `npm run verify`, `npm run secret-scan`; the dashboard static build; Rust `cargo test --release` and `--features migrate` in the same image.
+* Local equivalents run today on this tree: 396/396 unit tests; verifier 13+21+16; secret scan 0 findings; the Rust tests in the pinned image (36 and 37) as above; the dashboard typecheck and static export. These are not CI evidence, they are the same commands.
 
 ## 6. Remaining security concerns
 
-1. **DAO factory minimum deposit is UNVERIFIED** on mainnet (no view method). Setup adapts up to 9 NEAR; fund for that case.
+1. **DAO factory deposit:** resolved in the final gate: the factory has no minimum and refunds a failed creation; the 6 NEAR is a treasury choice (2.5 would do); the escalation logic was removed.
 2. **The vault is a key held by the worker** (no OutLayer custody on mainnet): whoever holds that key controls the vault (about 2 NEAR at peak). Bounded by size, not by policy.
 3. **The council is the authors**: "2 of 3 votes" is real mechanics but not independent governance. Say so on every mainnet claim.
 4. **Contract is upgradable until locked.** Before `mainnet:lock` the owner's key can redeploy it; after the lock nobody can ever change it. Neither state is "safe by itself": decide deliberately and only after the e2e passed.
@@ -91,11 +94,11 @@ Limits of this result: it shows the build is **deterministic here and equals the
 
 1. The owner's id and full-access key in `.env`, written by you (`QT_FUNDER_ACCOUNT`, `QT_FUNDER_KEY`); a **named** account, preferably `*.near`.
 2. `QT_SECRET_DIR` set to a folder outside OneDrive (for example `D:\qt-secrets`), with a plan to back it up.
-3. **At least 17 NEAR** in the owner account (19 to cover the factory asking up to 9).
+3. **At least 16.5 NEAR** in the owner account (the script enforces 16).
 4. `npm run mainnet:preflight` prints **READY**.
 5. The two local commits pushed and **CI green on that exact commit** (needs your approval to push).
 6. Your explicit, separate approval of the deployment plan.
 
 ## 8. Recommendation
 
-**NOT READY.** The code and the artifact are verified: the rebuilt wasm is identical to the committed one, the Rust and unit suites pass, the atomic deploy is proven on testnet, and the read-only checks work. What is missing is not code: no funder credentials, the secret directory is not yet outside OneDrive, funding is not in place, the factory deposit is unverified, and there is no CI run for the exact commit. When items 1-5 above are done and you approve item 6, the status becomes READY.
+**NOT READY.** The code and the artifact are verified: the rebuilt wasm is identical to the committed one, the Rust and unit suites pass, the atomic deploy is proven on testnet, and the read-only checks work. What is missing is not code: no funder credentials, the secret directory is not yet outside OneDrive, funding is not in place, and there is no CI run for the exact commit. When items 1-5 above are done and you approve item 6, the status becomes READY.

@@ -8,7 +8,7 @@ Security model, what each safety layer does and does not stop, and what a stolen
 
 ```
 npm ci
-npm test              # 384 unit tests (vitest): executor, guards, parser, verifier, custody policy, routes; the Rust contract's 36 tests (31 unit + 5 property tests) run in CI (cargo test --release)
+npm test              # 396 unit tests (vitest): executor, guards, parser, verifier, custody policy, routes; the Rust contract's 36 tests (31 unit + 5 property tests) run in CI (cargo test --release)
 npm run demo          # the whole story offline (simulation, ~2 s, exit code 0 only if every check holds)
 npm run verify        # independent verifier on three recorded proof bundles (13 + 21 + 16 checks), offline
 npm run secret-scan   # 0 findings expected

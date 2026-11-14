@@ -10,7 +10,7 @@ Built for **NEAR HACKATHON 2026**. Everything in this repository was written dur
 
 **Live demo:** https://tannmayygupta.github.io/near/ (static: the recorded runs plus live testnet RPC reads; the wizard's live AI parse and the red-team "Run attack" buttons need the worker, so run those locally).
 **For judges (5 minutes):** [docs/JUDGES.md](docs/JUDGES.md) · claims vs evidence: [docs/CLAIMS.md](docs/CLAIMS.md) · track proof map: [docs/TRACKS.md](docs/TRACKS.md) · AI disclosure: [docs/AI_DISCLOSURE.md](docs/AI_DISCLOSURE.md) · security model and limits: [SECURITY.md](SECURITY.md) · machine-readable map: [llms.txt](llms.txt)
-**Run it, no keys needed:** `npm ci && npm test && npm run verify` (384 unit tests; independent verifier on three recorded runs) and `npm run demo` (the whole story offline in about 2 seconds: a labelled simulation with a transcript and an exit code).
+**Run it, no keys needed:** `npm ci && npm test && npm run verify` (396 unit tests; independent verifier on three recorded runs) and `npm run demo` (the whole story offline in about 2 seconds: a labelled simulation with a transcript and an exit code).
 **No mainnet money was moved.** Everything real here is on public testnet; the mainnet-only parts are listed as *not proven* below.
 
 ## Quiet Treasury in 30 seconds
@@ -37,7 +37,7 @@ Built for **NEAR HACKATHON 2026**. Everything in this repository was written dur
 | Check a run yourself, in the browser | [`/recompute`](https://tannmayygupta.github.io/near/recompute/): re-reads the contract and the transactions from public RPC |
 | Recorded runs and proof bundles | [`data/demo-run/`](data/demo-run/) (`custody-run.json`, `restart-run.json`, `sealed-run.json`, `run.json`) |
 
-Everything above is public **testnet**. As of 14 November 2026: 6 real Ref swaps and 4 payouts/fee/returns in the custody run, a 13/13 crash-restart, 384 unit tests plus 36 contract tests, 201 cited transactions all found on-chain. No mainnet transactions exist.
+Everything above is public **testnet**. As of 14 November 2026: 6 real Ref swaps and 4 payouts/fee/returns in the custody run, a 13/13 crash-restart, 396 unit tests plus 36 contract tests, 201 cited transactions all found on-chain. No mainnet transactions exist.
 
 ### How this maps to how we are judged
 The Loops page shows this rubric for the Social Money, Autonomous Business, Privacy and Real-World Money tracks: NEAR technology usage 35%, real not simulated 25%, track fit 20%, execution and completeness 20%.
@@ -47,7 +47,7 @@ The Loops page shows this rubric for the Social Money, Autonomous Business, Priv
 | NEAR technology usage (35%) | Sputnik DAO v2 proposals, our Rust contract (deployed code hash equals the committed wasm: `npm run verify:contract`), NEAR AI Cloud TEE (signed, attested), **OutLayer agent wallet as the vault + per-mandate wallet policy** ([docs/CUSTODY.md](docs/CUSTODY.md)), near.social, NEAR Intents quotes. Map: [NEAR technology map](#near-technology-map-where-to-look-in-the-code) | Intents execution and confidential swaps are quoted only |
 | Real, not simulated (25%) | Every transaction in the recorded runs is on public testnet and checked to exist (`npm run check:evidence`, `data/evidence-check.json`): DAO votes and funding transfers, real Ref swaps, payouts, returns, report anchoring | **Testnet only. No mainnet funds.** Tokens are play money; chunking gives no price gain on the thin pool and the report says so |
 | Track fit (20%) | One section per track below: what it means, the problem it solves here, a scenario, proof, the limit | Seven tracks claimed, each scoped honestly |
-| Execution and completeness (20%) | 384 unit tests, 36 contract tests (31 unit + 5 property tests), CI, four end-to-end runs (30/30, 37/37, 37/37 and a 13/13 crash-restart), 15-page dashboard, three independent-verifier bundles | Hosted demo is static (no worker behind it); see Status |
+| Execution and completeness (20%) | 396 unit tests, 36 contract tests (31 unit + 5 property tests), CI, four end-to-end runs (30/30, 37/37, 37/37 and a 13/13 crash-restart), 15-page dashboard, three independent-verifier bundles | Hosted demo is static (no worker behind it); see Status |
 
 ---
 
@@ -188,7 +188,7 @@ NEAR's hackathon tracks name real capabilities. Here is what each one means and 
 Testnet tokens are play money. The wallet key is in OutLayer's TEE, but testnet trades are ordinary public transactions, so there is no confidentiality on testnet. Full row-by-row status with evidence: [docs/CLAIMS.md](docs/CLAIMS.md).
 
 ### Status, 14 Nov 2026
-* **Tests:** 384 unit tests (vitest), 36 Rust contract tests (31 unit + 5 property tests); `npm run verify` re-checks three recorded proof bundles (13 + 21 + 16 checks).
+* **Tests:** 396 unit tests (vitest), 36 Rust contract tests (31 unit + 5 property tests); `npm run verify` re-checks three recorded proof bundles (13 + 21 + 16 checks).
 * **End-to-end runs on public testnet:** 30/30 (key vault), 37/37 (OutLayer custody, 6 real swaps, 4 payouts/fee/returns), 37/37 (sealed), 13/13 (crash-restart).
 * **Evidence:** all 201 distinct transactions cited here, in the docs and in the recorded runs were looked up on public testnet and all 201 exist (`npm run check:evidence`, result in `data/evidence-check.json`). The deployed contract's code hash equals the committed wasm (`npm run verify:contract`).
 * **Protocol-level scoping:** the worker drives the mandate contract with a function-call key (5 methods, no deposit); the NEAR protocol refuses everything else (6 live probes in `data/testnet-scoped-key.json`; the custody and crash-restart runs use this key).
@@ -201,7 +201,7 @@ Testnet tokens are play money. The wallet key is in OutLayer's TEE, but testnet 
 
 ```bash
 npm ci
-npm test                                  # 384 unit tests: parser, planner, settlement, verifier, worker edge cases, sealed checks, custody policy
+npm test                                  # 396 unit tests: parser, planner, settlement, verifier, worker edge cases, sealed checks, custody policy
 npm run verify                            # independent verifier on three recorded proof bundles (13 + 21 + 16 checks, incl. tamper cases)
 npm run secret-scan                       # 0 findings expected
 npm run verify:contract                   # needs network: deployed contract code hash == committed wasm

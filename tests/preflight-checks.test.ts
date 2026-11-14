@@ -16,7 +16,7 @@ function deps(over: Partial<PreflightDeps> = {}): PreflightDeps {
     accessKey: async (_id, pk) => (pk === PUB ? { permission: 'FullAccess' } : null),
     readWasm: () => WASM, recordedReleaseHash: () => HASH, codeHashOf,
     secretDir: sdOk, secretDirWritable: true,
-    git: { envIgnored: true, trackedSecretLike: [], secretDirIgnored: null }, envFileText: 'NEAR_AI_API_KEY=x\n', setupMinimum: toYocto(16), ...over,
+    git: { envIgnored: true, trackedSecretLike: [], secretDirIgnored: null }, envFileText: 'NEAR_AI_API_KEY=x\n', envFileSynced: false, setupMinimum: toYocto(16), ...over,
   };
 }
 const EMPTY = '11111111111111111111111111111111';
@@ -94,4 +94,18 @@ describe('balance gate before any transaction (no partial setup)', () => {
   it('a fully set-up owner needs just the gas margin', () => { expect(fromYocto(remainingSetupNeed({ subs: ALL, dao: true }))).toBe('0.3000'); });
   it('partial progress is subtracted account by account (council1 and the contract account already exist)', () => { expect(fromYocto(remainingSetupNeed({ subs: ['qt-c1', 'qt-mandate'], dao: false }))).toBe('9.1500'); });
   it('the owner outflow can never exceed the planned deposit: the plan has no escalation knob', () => { expect(Object.keys(SETUP_PLAN).sort()).toEqual(['daoDepositNear', 'gasEstimateNear', 'ownerReserveNear', 'subAccounts', 'vaultNear']); });
+});
+describe('the owner key must not sit in a .env that a cloud drive uploads', () => {
+  it('blocks when QT_FUNDER_KEY is written in a synchronised .env', async () => {
+    const r = await runPreflight(deps({ envFileText: 'QT_FUNDER_KEY=ed25519:abc\n', envFileSynced: true }));
+    expect(blocking(r)).toContain('the owner key is not stored in a .env that a cloud drive synchronises');
+  });
+  it('passes when the key is only in the shell, or .env is not synchronised', async () => {
+    expect(blocking(await runPreflight(deps({ envFileText: 'NEAR_AI_API_KEY=x\n', envFileSynced: true })))).toEqual([]);
+    expect(blocking(await runPreflight(deps({ envFileText: 'QT_FUNDER_KEY=ed25519:abc\n', envFileSynced: false })))).toEqual([]);
+  });
+  it('never echoes the key from .env into the result', async () => {
+    const s = ser(await runPreflight(deps({ envFileText: 'QT_FUNDER_KEY=ed25519:SUPERSECRETVALUE123\n', envFileSynced: true })));
+    expect(s).not.toContain('SUPERSECRETVALUE123');
+  });
 });

@@ -7,7 +7,7 @@ import { accessSync, constants, existsSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { runPreflight, secretLike } from '../../src/near/preflight-checks.js';
 import { codeHashOf, fromYocto, toYocto } from '../../src/near/setup-plan.js';
-import { inspectSecretDir } from '../../src/near/secret-dir.js';
+import { inspectSecretDir, isSyncedPath } from '../../src/near/secret-dir.js';
 import { chainReader } from './readers.js';
 import { IS_MAINNET, LIMITS, P } from './net.js';
 
@@ -28,7 +28,7 @@ const { checks, estimate, wasm } = await runPreflight({
   readWasm: () => (existsSync(wasmPath) ? readFileSync(wasmPath) : null), recordedReleaseHash: () => recorded, codeHashOf,
   secretDir: sd, secretDirWritable: writable,
   git: { envIgnored: ignored('.env'), trackedSecretLike: secretLike(tracked), secretDirIgnored: sd.insideRepo ? ignored(`${sd.dir}/probe.json`) : null },
-  envFileText: envText, setupMinimum: toYocto(LIMITS.setupNear),
+  envFileText: envText, envFileSynced: isSyncedPath(resolve('.env')).synced, setupMinimum: toYocto(LIMITS.setupNear),
 });
 
 console.log(`MAINNET PRE-FLIGHT  (network profile: ${P.name}, RPC ${P.rpc})\n`);
