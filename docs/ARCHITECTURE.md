@@ -46,7 +46,7 @@ One sentence: a DAO votes once on a bounded **mandate**; an agent executes it in
 | Planner / settlement / benchmark | `src/engine/{planner,settlement,benchmark}.ts` | chunk sizes/timing, floor math, report + CSV, source tags (`chain`/`api`/`recorded`/`simulated`) |
 | Chain helpers | `src/near/{chain,sputnik,mandate}.ts` | thin near-api-js wrappers, proposals/votes, contract views and calls |
 | OutLayer clients | `src/near/{outlayer,outlayer-policy,intents}.ts` | wallet API, programmatic policy, 1Click dry quotes |
-| Mandate contract | `contracts/mandate/src/lib.rs` | on-chain authority + budget/window enforcement + trust score; 16 unit tests; built in Docker |
+| Mandate contract | `contracts/mandate/src/lib.rs` | on-chain authority + budget/window enforcement + trust score; 36 tests (31 unit + 5 property); built in Docker |
 | Worker | `worker/{executor,guards,state,api,redteam,summarizer,index}.ts` | state machine, guards (layer B), sqlite state (`node:sqlite`), read-only API, real red-team attacks |
 | Dashboard | `app/` | all views read chain/worker/recorded data; every number carries a source tag; no mocked values |
 | Verifier | `src/verify/` | independent checks of a proof bundle |

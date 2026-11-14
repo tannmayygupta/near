@@ -24,6 +24,7 @@ if (sell <= 0) { // price is BELOW target: sell USDT.e into the pool (buy wNEAR)
   const q2: any = await view(c.rpc, REF, 'get_pool', { pool_id: pool });
   const w3 = Number(BigInt(q2.amounts[iw]) / 10n ** 18n) / 1e6, u3 = Number(BigInt(q2.amounts[1 - iw]) / 10n ** 3n) / 1e3;
   console.log(`pool ${pool} now: wNEAR=${w3} USDT.e=${u3} price=${(u3 / w3).toFixed(3)}`);
+  const { resetVaultFloat } = await import('../testnet/vault.js'); await resetVaultFloat(vault, c.rpc); // unwrap the wNEAR it bought so the vault float stays clean
   process.exit(0);
 }
 const amountIn = NEAR(sell.toFixed(4));

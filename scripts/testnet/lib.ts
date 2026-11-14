@@ -1,4 +1,4 @@
-﻿// Shared helpers for the PUBLIC TESTNET scripts. Secrets live in data/secret (git-ignored); public ids in data/testnet-public.json.
+// Shared helpers for the PUBLIC TESTNET scripts. Secrets live in data/secret (git-ignored); public ids in data/testnet-public.json.
 import { KeyPair } from 'near-api-js';
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { RPC, accountFor, callTx, TGAS } from '../../src/near/chain.js';
@@ -61,3 +61,8 @@ export async function proposeWithHash(c: TestnetConfig, who: string, description
 
 export const RPC_TESTNET = RPC.testnet;
 
+/** USDT.e (6 decimals) per NEAR (24 decimals) for one swap. */
+export const swapPrice = (inn: string, out: string) => (Number(BigInt(out)) / 1e6) / (Number(BigInt(inn)) / 1e24);
+/** Every swap must sit in a market-like range. A recorded run once swapped through a pool priced ~1e16x the market because a reference-price fetch failed and the band was skipped. */
+export const pricesSane = (rows: Array<{ in: string; out: string }>, lo = 0.3, hi = 15) => rows.length > 0 && rows.every((r) => { const p = swapPrice(r.in, r.out); return Number.isFinite(p) && p >= lo && p <= hi; });
+export const priceList = (rows: Array<{ in: string; out: string }>) => rows.map((r) => swapPrice(r.in, r.out).toFixed(3)).join(', ');

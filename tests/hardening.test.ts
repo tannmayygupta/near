@@ -3,6 +3,8 @@ import { validateEnv, accountBelongsTo, classifyPermission, agentKeyProblems } f
 import { RateLimiter, clientBucket, clientIp } from '../worker/ratelimit';
 import { Alerts, TelegramSink, type AlertSink } from '../worker/alerts';
 import { evaluate, monitorOnce, DEFAULT_THRESHOLDS } from '../worker/monitor';
+import { RefPriceGuard, ReferenceUnavailable, inBand } from '../worker/adapters/price-guard';
+import { parseMandateEvents } from '../src/near/mandate';
 
 const KEY = 'ed25519:' + '3'.repeat(88);
 const good = { NEAR_NETWORK: 'testnet', EXEC_MODE: 'testnet-outlayer', DAO_ACCOUNT: 'dao.sputnikv2.testnet', MANDATE_CONTRACT: 'qt.testnet', AGENT_ACCOUNT_ID: 'agent.testnet', AGENT_SECRET_KEY: KEY, CUSTODY_SEED: 'seed', SIM_QUOTE_RECIPIENT: '0x1111111111111111111111111111111111111111', CUSTODY_OWNER_KEY: KEY };
@@ -112,5 +114,33 @@ describe('monitor', () => {
     const told: string[] = []; const a = new Alerts({ send: async (t) => { told.push(t); return 'sent'; } }, { now: () => 0 }); const logs: string[] = [];
     const f = await monitorOnce({ tick: () => { throw new Error('boom'); }, tickEveryS: 5, needsReview: () => 3, running: () => [], vaultNative: async () => 10n ** 24n }, a, 10_000, (k) => logs.push(k), DEFAULT_THRESHOLDS);
     expect(f.map((x) => x.key)).toEqual(['needs-review']); expect(told.length).toBe(1); expect(logs).toContain('monitor_source_failed');
+  });
+});
+
+describe('reference price guard (fails closed)', () => {
+  it('uses a fresh reference, remembers it, and falls back to it for up to an hour when the fetch fails', async () => {
+    let now = 0; let next: number | null = 1.7; const g = new RefPriceGuard({ fetch: async () => next, now: () => now, retries: 2, sleep: async () => {} });
+    expect(await g.get()).toBe(1.7); next = null; now = 30 * 60_000; expect(await g.get()).toBe(1.7);
+  });
+  it('REFUSES (throws) when there is no reference and no recent good one, instead of skipping the band', async () => {
+    const g = new RefPriceGuard({ fetch: async () => null, retries: 2, sleep: async () => {} }); await expect(g.get()).rejects.toThrow(/refusing to trade/);
+    let now = 0; let next: number | null = 2; const g2 = new RefPriceGuard({ fetch: async () => next, now: () => now, retries: 1, sleep: async () => {} });
+    await g2.get(); next = null; now = 61 * 60_000; await expect(g2.get()).rejects.toBeInstanceOf(ReferenceUnavailable);
+  });
+  it('retries a failing fetch before giving up and rejects non-positive or non-finite prices', async () => {
+    let calls = 0; const g = new RefPriceGuard({ fetch: async () => (++calls < 3 ? null : 1.5), retries: 3, sleep: async () => {} }); expect(await g.get()).toBe(1.5); expect(calls).toBe(3);
+    const bad = new RefPriceGuard({ fetch: async () => 0, retries: 1, sleep: async () => {} }); await expect(bad.get()).rejects.toThrow();
+  });
+  it('the band keeps a market-like pool and rejects the absurd ones seen on testnet (1e16x and 0.0001x)', () => {
+    expect(inBand(4.5, 1.7)).toBe(true); expect(inBand(36.9, 1.7)).toBe(false); expect(inBand(1.07e16, 1.7)).toBe(false); expect(inBand(0.0001, 1.7)).toBe(false); expect(inBand(NaN, 1.7)).toBe(false);
+  });
+});
+
+describe('NEP-297 event parser (mandate contract v2)', () => {
+  const log = (event: string, data: object) => `EVENT_JSON:${JSON.stringify({ standard: 'quiet_treasury', version: '1.0.0', event, data })}`; // the real on-chain shape: data is an object
+  it('keeps only quiet_treasury events and ignores plain logs, malformed JSON and other standards', () => {
+    const ev = parseMandateEvents([log('chunk_recorded', { id: 1, index: 0 }), 'some plain log', 'EVENT_JSON:{not json', `EVENT_JSON:${JSON.stringify({ standard: 'nep171', event: 'nft_mint', data: [] })}`, log('mandate_completed', { id: 1, report_hash: 'a'.repeat(64) })]);
+    expect(ev.map((e) => e.event)).toEqual(['chunk_recorded', 'mandate_completed']);
+    expect((ev[1]!.data as { report_hash: string }).report_hash).toBe('a'.repeat(64));
   });
 });

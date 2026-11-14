@@ -24,8 +24,8 @@ import { createApi } from '../../worker/api.js';
 import { nep413Hash } from '../../worker/auth.js';
 import { RefTestnetAdapter, isTxHash } from '../../worker/adapters/ref-testnet.js';
 import { createSummarizer } from '../../worker/summarizer.js';
-import { A, loadConfig, saveConfig, helperCreate, proposeWithHash, voteTx, rec, txs, explorerTx, explorerAccount, sleep } from './lib.js';
-import { ensureVault, mainnetRefPrice } from './vault.js';
+import { pricesSane, priceList, A, loadConfig, saveConfig, helperCreate, proposeWithHash, voteTx, rec, txs, explorerTx, explorerAccount, sleep } from './lib.js';
+import { ensureVault, mainnetRefPrice, resetVaultFloat } from './vault.js';
 
 const c = loadConfig();
 const pub = JSON.parse(readFileSync('data/testnet-public.json', 'utf8').replace(/^﻿/, ''));
@@ -41,6 +41,7 @@ const txOnChain = async (hash: string, signer: string) => { try { const o: any =
 
 // ---------- vault + REAL adapter ----------
 const { vault, accountId: VAULT } = await ensureVault();
+await resetVaultFloat(vault, c.rpc); // wNEAR left by earlier runs / the pool rebalancer would count as DAO-funded budget
 const vaultReserve = await natOf(VAULT);
 rmSync('data/secret/ref-ledger-sealed.json', { force: true });
 const ref = new RefTestnetAdapter({
@@ -210,6 +211,7 @@ check('every swap request id is a real transaction hash that exists on chain', c
 const stored = state.report(nextId);
 check('report fills are tagged chain (never simulated)', stored?.fills?.length > 0 && stored.fills.every((f: any) => f.source === 'chain'));
 check('every swap respected the (sealed) price floor', stored?.floorRespected === true && state.violations(nextId).length === 0, `worst ${stored?.totals?.worstFillPrice?.value}`);
+check('every swap executed at a market-like price (0.3-15 USDT.e per NEAR): never through an absurd pool', pricesSane(chunks1.map((x) => ({ in: x.size, out: x.amount_out ?? '0' }))), priceList(chunks1.map((x) => ({ in: x.size, out: x.amount_out ?? '0' }))));
 const after = { alice: await usdtOf(ALICE), bob: await usdtOf(BOB), operator: await usdtOf(OPERATOR), daoUsdt: await usdtOf(c.dao) };
 const paid = (label: string) => BigInt(items1.find((i) => i.label === label && i.status === 'success')?.amount ?? '0');
 check('alice really received her USDT.e payout (recipient was sealed until settlement)', paid('alice') > 0n && after.alice - before.alice === paid('alice'), `+${after.alice - before.alice}`);
@@ -273,6 +275,7 @@ const sealedRun = {
 mkdirSync('data/demo-run', { recursive: true });
 writeFileSync('data/demo-run/sealed-proof-bundle.json', JSON.stringify(bundle, null, 2));
 writeFileSync('data/demo-run/sealed-run.json', JSON.stringify(sealedRun, null, 2));
+mkdirSync('app/public/demo-run', { recursive: true }); writeFileSync('app/public/demo-run/sealed-run.json', JSON.stringify(sealedRun, null, 2)); // the dashboard serves this copy (a stale one once broke /recompute)
 
 console.log('\n=========== SEALED MANDATE E2E RESULT ===========');
 for (const [nme, ok] of results) console.log(ok ? ' PASS ' : ' FAIL ', nme);

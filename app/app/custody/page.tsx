@@ -13,7 +13,7 @@ function CustodyBody({ run }: { run: CustodyRun }) {
   return (
     <>
       <div className="grid">
-        <Stat k="Vault" v="OutLayer agent wallet" s="recorded" />
+        <Stat k="Vault" v="OutLayer wallet" s="recorded" />
         <Stat k="Run checks passed" v={`${passed}/${run.results.length}`} s="recorded" />
         <Stat k="Policies written by the worker" v={run.layerA.policies.length} s="recorded" />
         <Stat k="Real denials from OutLayer (403)" v={aRows.length + run.layerA.probes.filter((p) => p.blocked).length} s="recorded" />
@@ -34,7 +34,7 @@ function CustodyBody({ run }: { run: CustodyRun }) {
       </div>
 
       <h2>2. The worker writes a wallet policy per mandate (Layer A)</h2>
-      <p className="lead">Before a mandate may trade, the worker derives a policy from the DAO-approved terms: only the contracts the trade needs, the DAO, and exactly the approved payout and fee accounts; native NEAR capped at the mandate budget. OutLayer stores it encrypted on <span className="mono">outlayer.testnet</span>.</p>
+      <p className="lead">Before a mandate may trade, the worker derives a policy from the DAO-approved terms: only the contracts the trade needs and the DAO; native NEAR capped at the mandate budget. OutLayer stores it encrypted on <span className="mono">outlayer.testnet</span>. The policy does <strong>not</strong> check who receives a token or how much (we tested it: <code>/transfer</code> ignores the token field); payee and amount limits are enforced by the contract and the executor guards (Layer B).</p>
       {run.layerA.policies.map((p) => (
         <div className="card" key={p.storeTx}>
           <div className="row" style={{ marginBottom: 6 }}><strong>Mandate #{p.mandate}</strong><Src s="chain" /><TxLink hash={p.storeTx} /></div>

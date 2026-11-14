@@ -14,7 +14,7 @@ import { RealChain } from '../../worker/chain.js';
 import { State } from '../../worker/state.js';
 import { RefTestnetAdapter, isTxHash } from '../../worker/adapters/ref-testnet.js';
 import type { ChainSigner, SignedCall } from '../../worker/adapters/signers.js';
-import { A, loadConfig, proposeWithHash, voteTx, rec, txs, explorerTx, sleep } from './lib.js';
+import { pricesSane, priceList, A, loadConfig, proposeWithHash, voteTx, rec, txs, explorerTx, sleep } from './lib.js';
 import { mainnetRefPrice } from './vault.js';
 import { ensureCustody } from './custody.js';
 import { scopedAgent } from './scoped-key.js';
@@ -124,12 +124,13 @@ check('leftover proceeds returned to the DAO exactly once', !retBuy || (retBuy.s
 const rep = w.state.report(nextId);
 check('report hash anchored on chain matches the stored report', /^[0-9a-f]{64}$/.test(m.report_hash ?? '') && rep?.reportHash === m.report_hash, (m.report_hash ?? '').slice(0, 16));
 check('price floor respected on every fill, no violations', rep?.floorRespected === true && w.state.violations(nextId).length === 0);
+check('every swap executed at a market-like price (0.3-15 USDT.e per NEAR): never through an absurd pool', pricesSane(done.map((x) => ({ in: x.size, out: x.amount_out ?? '0' }))), priceList(done.map((x) => ({ in: x.size, out: x.amount_out ?? '0' }))));
 check('no chunk was recorded on chain that the worker had not executed (chain chunk count == executed swaps)', m.chunks === done.length, `${m.chunks} vs ${done.length}`);
 
 const failed = results.filter((r) => !r[1]);
 mkdirSync('data/demo-run', { recursive: true }); mkdirSync('app/public/demo-run', { recursive: true });
 const out = {
-  recordedAt: new Date().toISOString(), network: 'testnet', custody: 'outlayer', mandateId: nextId, wallet: VAULT,
+  recordedAt: new Date().toISOString(), network: 'testnet', custody: 'outlayer', mandateId: nextId, wallet: VAULT, ids: { mandateContract: c.mandate, agent: c.accounts.agent.accountId, dao: c.dao },
   note: 'LIVE crash-restart on public testnet. The crash is a simulated process death injected AFTER a real swap landed (signer wrapper in scripts/testnet/e2e-restart.ts); the restarted worker is a new State connection + new adapter over the same files.',
   crash: { swapTx: crashing.crashedHash, explorer: crashing.crashedHash ? explorerTx(crashing.crashedHash) : null, chunksRecordedOnChainAtCrash: chunksAtCrash, recordedLocallyBeforeDeath: recordedBeforeDeath },
   swaps: done.map((x) => ({ index: x.idx, tx: x.request_id, explorer: explorerTx(x.request_id!), in: x.size, out: x.amount_out })),

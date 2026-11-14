@@ -21,8 +21,8 @@ import { createApi, termsFor } from '../../worker/api.js';
 import { runAttack, ATTACKS } from '../../worker/redteam.js';
 import { RefTestnetAdapter, isTxHash } from '../../worker/adapters/ref-testnet.js';
 import { createSummarizer } from '../../worker/summarizer.js';
-import { A, loadConfig, proposeWithHash, voteTx, rec, txs, explorerTx, explorerAccount, sleep } from './lib.js';
-import { ensureVault, mainnetRefPrice } from './vault.js';
+import { pricesSane, priceList, A, loadConfig, proposeWithHash, voteTx, rec, txs, explorerTx, explorerAccount, sleep } from './lib.js';
+import { ensureVault, mainnetRefPrice, resetVaultFloat } from './vault.js';
 
 const c = loadConfig();
 const pub = JSON.parse(readFileSync('data/testnet-public.json', 'utf8').replace(/^﻿/, ''));
@@ -39,6 +39,7 @@ const txOnChain = async (hash: string, signer: string) => { try { const o: any =
 
 // ---------- vault + REAL adapter ----------
 const { vault, accountId: VAULT } = await ensureVault();
+await resetVaultFloat(vault, c.rpc); // wNEAR left by earlier runs / the pool rebalancer would count as DAO-funded budget
 const vaultReserve = await natOf(VAULT); // the vault's float BEFORE any DAO funding: everything above it (plus what the adapter itself spent) is DAO-funded budget
 rmSync('data/secret/ref-ledger-e2e.json', { force: true });
 const ref = new RefTestnetAdapter({
@@ -138,6 +139,7 @@ check('every swap request id is a real transaction hash that exists on chain', c
 const stored = state.report(nextId);
 check('report fills are tagged chain (never simulated)', stored?.fills?.length > 0 && stored.fills.every((f: any) => f.source === 'chain'));
 check('every swap respected the price floor', stored?.floorRespected === true && state.violations(nextId).length === 0, `worst ${stored?.totals?.worstFillPrice?.value}`);
+check('every swap executed at a market-like price (0.3-15 USDT.e per NEAR): never through an absurd pool', pricesSane(chunks1.map((x) => ({ in: x.size, out: x.amount_out ?? '0' }))), priceList(chunks1.map((x) => ({ in: x.size, out: x.amount_out ?? '0' }))));
 const after = { alice: await usdtOf(ALICE), bob: await usdtOf(BOB), operator: await usdtOf(OPERATOR), daoUsdt: await usdtOf(c.dao), dao: await natOf(c.dao) };
 const paid = (label: string) => BigInt(items1.find((i) => i.label === label && i.status === 'success')?.amount ?? '0');
 check('alice (named account) really received her USDT.e payout', paid('alice') > 0n && after.alice - before.alice === paid('alice'), `+${after.alice - before.alice} (expected ${paid('alice')})`);

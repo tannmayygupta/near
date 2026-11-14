@@ -1,14 +1,21 @@
-//! Quiet Treasury - Mandate registry (on-chain source of truth).
+//! Quiet Treasury - Mandate registry v2 (on-chain source of truth).
 //!
 //! Access model:
-//!   * `dao`   (a Sputnik DAO account): create_mandate, cancel_mandate, set_agent. Because a Sputnik
+//!   * `dao`   (a Sputnik DAO account): create_mandate, cancel_mandate, set_agent, set_paused, propose_dao. Because a Sputnik
 //!             FunctionCall proposal executes as the DAO account, "DAO-only" == "a DAO vote approved it".
 //!   * `agent` (the OutLayer agent wallet account): mark_funded, record_chunk, begin_settlement,
-//!             complete, expire. The agent can never create or widen a mandate.
+//!             complete, expire. The agent can never create or widen a mandate (the worker's key is also a NEAR
+//!             function-call key limited to exactly these five methods).
 //! State machine mirrors src/engine/schema.ts TRANSITIONS.
+//!
+//! v2 adds: NEP-297 events for every state change (sealed terms are never logged), a state `version` with a feature-gated `migrate`,
+//! a DAO-controlled pause (stops new mandates only, never settlement), a two-step DAO handover, typed views and NEP-330 source metadata.
 use near_sdk::json_types::U128;
+use near_sdk::serde::Serialize;
 use near_sdk::store::IterableMap;
 use near_sdk::{env, near, require, AccountId, PanicOnDefault};
+
+pub const STATE_VERSION: u32 = 2;
 
 #[near(serializers = [json, borsh])]
 #[derive(Clone, PartialEq, Debug)]
@@ -45,7 +52,62 @@ pub struct Mandate {
     pub revealed_terms: Option<String>,
 }
 
-#[near(contract_state)]
+/// NEP-297 events (standard "quiet_treasury", version 1.0.0). Anyone can rebuild a mandate's history from these logs.
+/// Sealed mandates log only the commitment: never terms, recipients or the floor.
+#[near(event_json(standard = "quiet_treasury"))]
+pub enum Event {
+    #[event_version("1.0.0")]
+    MandateCreated { id: u64, treasurer: AccountId, terms_hash: String, sell_token: String, max_sell: U128, start_ns: u64, end_ns: u64, tier: String, sealed: bool },
+    #[event_version("1.0.0")]
+    MandateFunded { id: u64 },
+    #[event_version("1.0.0")]
+    ChunkRecorded { id: u64, index: u32, sold_amount: U128, total_sold: U128 },
+    #[event_version("1.0.0")]
+    SettlementBegun { id: u64 },
+    #[event_version("1.0.0")]
+    MandateCompleted { id: u64, report_hash: String, violations: u32, trust_after: u32, revealed: bool },
+    #[event_version("1.0.0")]
+    MandateCancelled { id: u64, sold: U128 },
+    #[event_version("1.0.0")]
+    MandateExpired { id: u64 },
+    #[event_version("1.0.0")]
+    AgentChanged { agent: AccountId },
+    #[event_version("1.0.0")]
+    PausedChanged { paused: bool },
+    #[event_version("1.0.0")]
+    DaoProposed { pending_dao: AccountId },
+    #[event_version("1.0.0")]
+    DaoChanged { dao: AccountId },
+}
+
+#[derive(Serialize, Clone, Debug)]
+#[serde(crate = "near_sdk::serde")]
+pub struct Stats {
+    pub version: u32,
+    pub paused: bool,
+    pub dao: AccountId,
+    pub agent: AccountId,
+    pub pending_dao: Option<AccountId>,
+    pub mandates: u64,
+    pub approved: u64,
+    pub funded: u64,
+    pub executing: u64,
+    pub settling: u64,
+    pub completed: u64,
+    pub cancelled: u64,
+    pub expired: u64,
+    pub chunks_recorded: u64,
+    pub treasurers_with_trust: u64,
+}
+
+#[near(
+    contract_state,
+    contract_metadata(
+        version = "2.0.0",
+        link = "https://github.com/tannmayygupta/near/tree/main/contracts/mandate",
+        standard(standard = "nep330", version = "1.2.0")
+    )
+)]
 #[derive(PanicOnDefault)]
 pub struct Contract {
     dao: AccountId,
@@ -54,6 +116,12 @@ pub struct Contract {
     mandates: IterableMap<u64, Mandate>,
     /// treasurer -> number of mandates settled with zero violations (drives approval tiers)
     trust: IterableMap<AccountId, u32>,
+    /// state layout version (2). `migrate` upgrades v1 state.
+    version: u32,
+    /// DAO-controlled: when true no NEW mandate can be created. Funding, trading, settlement and cancel keep working so nothing gets stuck.
+    paused: bool,
+    /// two-step DAO handover: set by `propose_dao`, takes effect only when that account calls `accept_dao`
+    pending_dao: Option<AccountId>,
 }
 
 fn allowed(from: &Status, to: &Status) -> bool {
@@ -78,7 +146,8 @@ fn allowed(from: &Status, to: &Status) -> bool {
 impl Contract {
     #[init]
     pub fn new(dao: AccountId, agent: AccountId) -> Self {
-        Self { dao, agent, next_id: 0, mandates: IterableMap::new(b"m"), trust: IterableMap::new(b"t") }
+        require!(dao != agent, "the DAO and the agent must be different accounts");
+        Self { dao, agent, next_id: 0, mandates: IterableMap::new(b"m"), trust: IterableMap::new(b"t"), version: STATE_VERSION, paused: false, pending_dao: None }
     }
 
     // ---------- DAO-only ----------
@@ -94,6 +163,7 @@ impl Contract {
         tier: String,
     ) -> u64 {
         self.assert_dao();
+        require!(!self.paused, "the contract is paused: no new mandates");
         require!(terms_hash.len() == 64, "terms_hash must be 64 hex chars");
         require!(end_ns > start_ns, "end must be after start");
         require!(end_ns > env::block_timestamp(), "already expired");
@@ -101,16 +171,17 @@ impl Contract {
         require!(matches!(tier.as_str(), "small" | "mid" | "large"), "bad tier");
         let id = self.next_id;
         self.next_id += 1;
+        let sealed = terms_json.is_none();
         let m = Mandate {
             id,
-            treasurer,
-            terms_hash,
+            treasurer: treasurer.clone(),
+            terms_hash: terms_hash.clone(),
             terms_json,
-            sell_token,
+            sell_token: sell_token.clone(),
             max_sell,
             start_ns,
             end_ns,
-            tier,
+            tier: tier.clone(),
             status: Status::Approved,
             sold: U128(0),
             chunks: 0,
@@ -119,23 +190,53 @@ impl Contract {
             revealed_terms: None,
         };
         self.mandates.insert(id, m);
+        Event::MandateCreated { id, treasurer, terms_hash, sell_token, max_sell, start_ns, end_ns, tier, sealed }.emit();
         id
     }
 
     pub fn cancel_mandate(&mut self, id: u64) {
         self.assert_dao();
         self.transition(id, Status::Cancelled);
+        let sold = self.mandates.get(&id).expect("no such mandate").sold;
+        Event::MandateCancelled { id, sold }.emit();
     }
 
     pub fn set_agent(&mut self, agent: AccountId) {
         self.assert_dao();
-        self.agent = agent;
+        require!(agent != self.dao, "the agent must not be the DAO");
+        self.agent = agent.clone();
+        Event::AgentChanged { agent }.emit();
+    }
+
+    /// Stops NEW mandates only. Existing mandates can still be funded, traded, settled and cancelled.
+    pub fn set_paused(&mut self, paused: bool) {
+        self.assert_dao();
+        self.paused = paused;
+        Event::PausedChanged { paused }.emit();
+    }
+
+    /// Step 1 of a DAO handover. Nothing changes until the proposed account calls `accept_dao`.
+    pub fn propose_dao(&mut self, new_dao: AccountId) {
+        self.assert_dao();
+        require!(new_dao != self.agent, "the new DAO must not be the agent");
+        self.pending_dao = Some(new_dao.clone());
+        Event::DaoProposed { pending_dao: new_dao }.emit();
+    }
+
+    /// Step 2: only the proposed account can accept.
+    pub fn accept_dao(&mut self) {
+        let pending = self.pending_dao.clone().expect("no DAO handover is pending");
+        require!(env::predecessor_account_id() == pending, "only the proposed DAO may accept");
+        self.dao = pending.clone();
+        self.pending_dao = None;
+        Event::DaoChanged { dao: pending }.emit();
     }
 
     // ---------- agent-only ----------
     pub fn mark_funded(&mut self, id: u64) {
         self.assert_agent();
         self.transition(id, Status::Funded);
+        Event::MandateFunded { id }.emit();
     }
 
     /// Idempotent: replaying an already-recorded index is a no-op; skipping ahead panics.
@@ -154,11 +255,13 @@ impl Contract {
         m.sold = U128(new_sold);
         m.chunks += 1;
         m.status = Status::Executing;
+        Event::ChunkRecorded { id, index, sold_amount, total_sold: U128(new_sold) }.emit();
     }
 
     pub fn begin_settlement(&mut self, id: u64) {
         self.assert_agent();
         self.transition(id, Status::Settling);
+        Event::SettlementBegun { id }.emit();
     }
 
     /// `violations` must be 0 for the treasurer to earn trust.
@@ -166,16 +269,19 @@ impl Contract {
         self.assert_agent();
         require!(report_hash.len() == 64, "report_hash must be 64 hex chars");
         self.transition(id, Status::Completed);
+        let revealed = revealed_terms.is_some();
         let treasurer = {
             let m = self.mandates.get_mut(&id).expect("no such mandate");
-            m.report_hash = Some(report_hash);
+            m.report_hash = Some(report_hash.clone());
             m.revealed_terms = revealed_terms;
             m.treasurer.clone()
         };
+        let mut trust_after = self.trust.get(&treasurer).copied().unwrap_or(0);
         if violations == 0 {
-            let cur = self.trust.get(&treasurer).copied().unwrap_or(0);
-            self.trust.insert(treasurer, cur + 1);
+            trust_after += 1;
+            self.trust.insert(treasurer, trust_after);
         }
+        Event::MandateCompleted { id, report_hash, violations, trust_after, revealed }.emit();
     }
 
     pub fn expire(&mut self, id: u64) {
@@ -183,6 +289,7 @@ impl Contract {
         let end = self.mandates.get(&id).expect("no such mandate").end_ns;
         require!(env::block_timestamp() > end, "not expired yet");
         self.transition(id, Status::Expired);
+        Event::MandateExpired { id }.emit();
     }
 
     // ---------- views ----------
@@ -195,8 +302,35 @@ impl Contract {
     pub fn get_trust(&self, treasurer: AccountId) -> u32 {
         self.trust.get(&treasurer).copied().unwrap_or(0)
     }
+    /// (dao, agent, next_id): kept as a tuple for the existing clients; `get_stats` is the typed view.
     pub fn get_config(&self) -> (AccountId, AccountId, u64) {
         (self.dao.clone(), self.agent.clone(), self.next_id)
+    }
+    pub fn get_version(&self) -> u32 {
+        self.version
+    }
+    pub fn is_paused(&self) -> bool {
+        self.paused
+    }
+    pub fn get_stats(&self) -> Stats {
+        let mut s = Stats {
+            version: self.version, paused: self.paused, dao: self.dao.clone(), agent: self.agent.clone(), pending_dao: self.pending_dao.clone(),
+            mandates: self.next_id, approved: 0, funded: 0, executing: 0, settling: 0, completed: 0, cancelled: 0, expired: 0, chunks_recorded: 0,
+            treasurers_with_trust: self.trust.len() as u64,
+        };
+        for (_, m) in self.mandates.iter() {
+            s.chunks_recorded += m.chunks as u64;
+            match m.status {
+                Status::Approved => s.approved += 1,
+                Status::Funded => s.funded += 1,
+                Status::Executing => s.executing += 1,
+                Status::Settling => s.settling += 1,
+                Status::Completed => s.completed += 1,
+                Status::Cancelled => s.cancelled += 1,
+                Status::Expired => s.expired += 1,
+            }
+        }
+        s
     }
 
     // ---------- internals ----------
@@ -210,6 +344,31 @@ impl Contract {
         let m = self.mandates.get_mut(&id).expect("no such mandate");
         require!(allowed(&m.status, &to), "illegal state transition");
         m.status = to;
+    }
+}
+
+/// v1 -> v2 state upgrade (build with `--features migrate`, deploy, call `migrate`, then redeploy the normal build).
+#[cfg(feature = "migrate")]
+mod migration {
+    use super::*;
+
+    #[near(serializers = [borsh])]
+    pub struct ContractV1 {
+        pub dao: AccountId,
+        pub agent: AccountId,
+        pub next_id: u64,
+        pub mandates: IterableMap<u64, Mandate>,
+        pub trust: IterableMap<AccountId, u32>,
+    }
+
+    #[near]
+    impl Contract {
+        #[private]
+        #[init(ignore_state)]
+        pub fn migrate() -> Self {
+            let old: ContractV1 = env::state_read().expect("no v1 state to migrate");
+            Self { dao: old.dao, agent: old.agent, next_id: old.next_id, mandates: old.mandates, trust: old.trust, version: STATE_VERSION, paused: false, pending_dao: None }
+        }
     }
 }
 
@@ -388,6 +547,8 @@ mod tests {
             prop_assert!(catch_unwind(AssertUnwindSafe(|| c.begin_settlement(0))).is_err());
             prop_assert!(catch_unwind(AssertUnwindSafe(|| c.cancel_mandate(0))).is_err());
             prop_assert!(catch_unwind(AssertUnwindSafe(|| c.set_agent(acc("evil.test")))).is_err());
+            prop_assert!(catch_unwind(AssertUnwindSafe(|| c.set_paused(true))).is_err());
+            prop_assert!(catch_unwind(AssertUnwindSafe(|| c.propose_dao(acc("evil.test")))).is_err());
             let created = catch_unwind(AssertUnwindSafe(|| { c.create_mandate(acc("alice.test"), HASH.into(), None, "x".into(), U128(1), T0, T0 + 5, "small".into()); }));
             prop_assert!(created.is_err());
             prop_assert_eq!(c.get_mandate(0).unwrap().chunks, 0);
@@ -412,5 +573,91 @@ mod tests {
             }
             prop_assert_eq!(c.get_trust(acc("alice.test")), base + clean);
         }
+    }
+
+    // ---------- v2: events, pause, two-step DAO handover, typed views, version ----------
+    use near_sdk::test_utils::get_logs;
+    fn events() -> Vec<String> { get_logs().into_iter().filter(|l| l.starts_with("EVENT_JSON:")).collect() }
+
+    #[test] fn every_state_change_emits_a_nep297_event_and_sealed_terms_never_appear() {
+        ctx("dao.test", T0);
+        let mut c = Contract::new(acc("dao.test"), acc("agent.test"));
+        c.create_mandate(acc("alice.test"), HASH.into(), None, "nep141:wrap.near".into(), U128(1000), T0, T0 + 10_000, "small".into()); // sealed: terms_json = None
+        let mut all = events();
+        ctx("agent.test", T0 + 1);
+        c.mark_funded(0); c.record_chunk(0, 0, U128(400)); c.begin_settlement(0);
+        c.complete(0, HASH.into(), 0, Some("{\"salt\":\"s3cret\",\"terms\":{\"minPrice\":\"2.5\"}}".into()));
+        all.extend(events());
+        let ev = all.join("\n");
+        for name in ["mandate_created", "mandate_funded", "chunk_recorded", "settlement_begun", "mandate_completed"] { assert!(ev.contains(name), "missing event {name}"); }
+        assert!(ev.contains("\"standard\":\"quiet_treasury\"") && ev.contains("\"version\":\"1.0.0\""));
+        assert!(ev.contains("\"sealed\":true"));
+        assert!(ev.contains("\"trust_after\":1") && ev.contains("\"total_sold\":\"400\""));
+        assert!(!ev.contains("minPrice") && !ev.contains("s3cret"), "revealed terms must never be written to the logs");
+    }
+    #[test] fn cancel_and_expire_emit_events() {
+        let mut c = fresh(); ctx("dao.test", T0 + 1); c.cancel_mandate(0);
+        assert!(events().join("").contains("mandate_cancelled"));
+        let mut d = fresh(); ctx("agent.test", T0 + 20_000); d.expire(0);
+        assert!(events().join("").contains("mandate_expired"));
+    }
+    #[test] fn replayed_chunk_emits_no_second_event() {
+        let mut c = fresh(); ctx("agent.test", T0 + 1); c.mark_funded(0); c.record_chunk(0, 0, U128(100));
+        let n = events().iter().filter(|e| e.contains("chunk_recorded")).count();
+        c.record_chunk(0, 0, U128(100));
+        assert_eq!(events().iter().filter(|e| e.contains("chunk_recorded")).count(), n);
+    }
+    #[test] fn version_is_2_and_views_are_typed() {
+        let c = fresh(); assert_eq!(c.get_version(), 2); assert!(!c.is_paused());
+        let s = c.get_stats(); assert_eq!((s.version, s.mandates, s.approved, s.completed), (2, 1, 1, 0)); assert_eq!(s.dao, acc("dao.test"));
+    }
+    #[test] fn stats_count_every_status() {
+        let mut c = fresh();
+        ctx("dao.test", T0); c.create_mandate(acc("bob.test"), HASH.into(), Some("{}".into()), "x".into(), U128(10), T0, T0 + 10_000, "small".into());
+        ctx("agent.test", T0 + 1); c.mark_funded(0); c.record_chunk(0, 0, U128(5));
+        ctx("dao.test", T0 + 2); c.cancel_mandate(1);
+        let s = c.get_stats(); assert_eq!((s.executing, s.cancelled, s.approved, s.chunks_recorded), (1, 1, 0, 1));
+    }
+    #[test] #[should_panic(expected = "only the DAO")] fn only_the_dao_can_pause() { let mut c = fresh(); ctx("agent.test", T0); c.set_paused(true); }
+    #[test] #[should_panic(expected = "paused")] fn pause_blocks_new_mandates() {
+        let mut c = fresh(); ctx("dao.test", T0); c.set_paused(true);
+        c.create_mandate(acc("alice.test"), HASH.into(), None, "x".into(), U128(1), T0, T0 + 5, "small".into());
+    }
+    #[test] fn pause_never_traps_a_running_mandate() {
+        let mut c = fresh(); ctx("agent.test", T0 + 1); c.mark_funded(0); c.record_chunk(0, 0, U128(10));
+        ctx("dao.test", T0 + 2); c.set_paused(true); assert!(c.is_paused());
+        ctx("agent.test", T0 + 3); c.record_chunk(0, 1, U128(10)); c.begin_settlement(0); c.complete(0, HASH.into(), 0, None);
+        assert_eq!(c.get_mandate(0).unwrap().status, Status::Completed);
+        ctx("dao.test", T0 + 4); c.set_paused(false); c.create_mandate(acc("alice.test"), HASH.into(), None, "x".into(), U128(1), T0, T0 + 10_000, "small".into());
+    }
+    #[test] fn dao_handover_is_two_step() {
+        let mut c = fresh(); ctx("dao.test", T0); c.propose_dao(acc("dao2.test"));
+        assert_eq!(c.get_stats().pending_dao, Some(acc("dao2.test"))); assert_eq!(c.get_stats().dao, acc("dao.test")); // nothing changed yet
+        ctx("dao2.test", T0 + 1); c.accept_dao();
+        let s = c.get_stats(); assert_eq!((s.dao, s.pending_dao), (acc("dao2.test"), None));
+    }
+    #[test] #[should_panic(expected = "only the proposed DAO")] fn only_the_proposed_account_can_accept() { let mut c = fresh(); ctx("dao.test", T0); c.propose_dao(acc("dao2.test")); ctx("mallory.test", T0 + 1); c.accept_dao(); }
+    #[test] #[should_panic(expected = "no DAO handover is pending")] fn accept_without_a_proposal_panics() { let mut c = fresh(); ctx("dao2.test", T0); c.accept_dao(); }
+    #[test] #[should_panic(expected = "only the DAO")] fn old_dao_loses_power_after_handover() {
+        let mut c = fresh(); ctx("dao.test", T0); c.propose_dao(acc("dao2.test")); ctx("dao2.test", T0 + 1); c.accept_dao();
+        ctx("dao.test", T0 + 2); c.cancel_mandate(0);
+    }
+    #[test] #[should_panic(expected = "must be different")] fn dao_and_agent_must_differ() { ctx("dao.test", T0); let _ = Contract::new(acc("same.test"), acc("same.test")); }
+    #[test] #[should_panic(expected = "must not be the DAO")] fn agent_cannot_be_set_to_the_dao() { let mut c = fresh(); ctx("dao.test", T0); c.set_agent(acc("dao.test")); }
+    #[test] #[should_panic(expected = "must not be the agent")] fn dao_cannot_be_proposed_as_the_agent() { let mut c = fresh(); ctx("dao.test", T0); c.propose_dao(acc("agent.test")); }
+
+    #[cfg(feature = "migrate")]
+    #[test] fn migrate_upgrades_v1_state_and_keeps_every_mandate() {
+        use super::migration::ContractV1;
+        ctx("dao.test", T0);
+        let mut old = ContractV1 { dao: acc("dao.test"), agent: acc("agent.test"), next_id: 1, mandates: IterableMap::new(b"m"), trust: IterableMap::new(b"t") };
+        old.mandates.insert(0, Mandate { id: 0, treasurer: acc("alice.test"), terms_hash: HASH.into(), terms_json: Some("{}".into()), sell_token: "x".into(), max_sell: U128(7), start_ns: T0, end_ns: T0 + 10, tier: "small".into(), status: Status::Funded, sold: U128(3), chunks: 1, created_ns: T0, report_hash: None, revealed_terms: None });
+        old.trust.insert(acc("alice.test"), 4);
+        old.mandates.flush(); old.trust.flush(); // store collections cache writes: flush them like a real v1 contract would before it returned
+        env::state_write(&old);
+        testing_env!(VMContextBuilder::new().current_account_id(acc("qt.test")).predecessor_account_id(acc("qt.test")).block_timestamp(T0).build());
+        let c = Contract::migrate();
+        assert_eq!(c.get_version(), 2); assert!(!c.is_paused());
+        assert_eq!(c.get_mandate(0).unwrap().sold.0, 3); assert_eq!(c.get_trust(acc("alice.test")), 4); assert_eq!(c.get_config().2, 1);
     }
 }

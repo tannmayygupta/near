@@ -19,12 +19,13 @@ if (process.argv[1]?.replaceAll('\\', '/').endsWith('scripts/testnet/scoped-key.
   const owner = A(c, 'agent');
   let addTx = '';
   let secret: string, pubkey: string;
-  if (existsSync(SCOPED_PATH)) { const k = JSON.parse(readFileSync(SCOPED_PATH, 'utf8')); secret = k.secretKey; pubkey = k.publicKey; addTx = k.addTx ?? ''; console.log('reusing scoped key', pubkey); }
+  const prev = existsSync(SCOPED_PATH) ? JSON.parse(readFileSync(SCOPED_PATH, 'utf8')) : null;
+  if (prev && prev.receiver === c.mandate) { secret = prev.secretKey; pubkey = prev.publicKey; addTx = prev.addTx ?? ''; console.log('reusing scoped key', pubkey); }
   else {
     const kp = KeyPair.fromRandom('ed25519'); secret = kp.toString(); pubkey = kp.getPublicKey().toString();
     const r: any = await owner.addFunctionCallAccessKey({ publicKey: pubkey, contractId: c.mandate, methodNames: SCOPED_METHODS, allowance: NEAR(2) });
     addTx = r.transaction?.hash ?? r.transaction_outcome?.id ?? '';
-    mkdirSync('data/secret', { recursive: true }); writeFileSync(SCOPED_PATH, JSON.stringify({ publicKey: pubkey, secretKey: secret, addTx }, null, 2));
+    mkdirSync('data/secret', { recursive: true }); writeFileSync(SCOPED_PATH, JSON.stringify({ publicKey: pubkey, secretKey: secret, addTx, receiver: c.mandate }, null, 2));
     console.log('added function-call key', pubkey, explorerTx(addTx)); await sleep(4000);
   }
   const scoped = accountFor(c.rpc, c.accounts.agent.accountId, secret);
@@ -47,6 +48,8 @@ if (process.argv[1]?.replaceAll('\\', '/').endsWith('scripts/testnet/scoped-key.
   await run('allowed method on the mandate contract (record_chunk on an unknown mandate): the protocol lets it through, the contract rejects the bad id', 'reaches-contract', () => call(c.mandate, 'record_chunk', { id: 999999, index: 0, sold_amount: '1' }));
   await run('DAO-only method create_mandate with the agent key', 'protocol-refusal', () => call(c.mandate, 'create_mandate', { treasurer: c.accounts.agent.accountId, terms_hash: 'b'.repeat(64), terms_json: null, sell_token: 'nep141:wrap.testnet', max_sell: '1', start_ns: 1, end_ns: 2, tier: 'small' }));
   await run('DAO-only method set_agent (hand the agent role to someone else) with the agent key', 'protocol-refusal', () => call(c.mandate, 'set_agent', { agent: c.accounts.bob.accountId }));
+  await run('DAO-only method set_paused (halt all new mandates) with the agent key', 'protocol-refusal', () => call(c.mandate, 'set_paused', { paused: true }));
+  await run('DAO-only method propose_dao (hand the DAO role away) with the agent key', 'protocol-refusal', () => call(c.mandate, 'propose_dao', { new_dao: c.accounts.bob.accountId }));
   await run('call a DIFFERENT contract (wrap.testnet near_deposit)', 'protocol-refusal', () => call('wrap.testnet', 'near_deposit', {}));
   await run('native NEAR transfer to another account', 'protocol-refusal', () => scoped.transfer({ receiverId: c.accounts.bob.accountId, amount: NEAR('0.01') }));
   await run('allowed method with an attached deposit', 'protocol-refusal', () => call(c.mandate, 'record_chunk', { id: 999999, index: 0, sold_amount: '1' }, 1n));

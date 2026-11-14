@@ -24,14 +24,16 @@ export function WhatIsReal() {
             <li>Payouts, fee and returns of real testnet tokens to named accounts</li>
             <li>Mandate contract state and the report hash anchored on-chain</li>
             <li>NEAR AI Cloud (TEE) parsing and summary, signed and attested</li>
-            <li>OutLayer wallet-policy denials (Layer A) on testnet</li>
+            <li>OutLayer agent wallet (testnet) holding the budget and signing the swaps under a per-mandate policy (Layer A)</li>
+            <li>A function-call-scoped agent key: the NEAR protocol refuses anything outside 5 methods (Layer 0)</li>
+            <li>Anyone can recompute a run from chain data in their own browser (Recompute page)</li>
           </ul>
         </div>
         <div>
           <div className="pill bad">NOT proven (mainnet-only)</div>
           <ul style={{ margin: '8px 0 0', paddingLeft: 18 }}>
             <li>Confidential swaps and hidden trades (NEAR Intents has no testnet)</li>
-            <li>OutLayer TEE custody doing the swaps (here a worker-held vault key signs)</li>
+            <li>OutLayer custody on mainnet (everything here ran on OutLayer&apos;s testnet service)</li>
             <li>Cross-chain payouts (Solana, Base) through Intents</li>
             <li>The DAO funding the agent&apos;s Intents balance</li>
           </ul>

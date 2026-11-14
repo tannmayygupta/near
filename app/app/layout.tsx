@@ -24,7 +24,6 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           <footer className="wrap" style={{ color: 'var(--muted)', fontSize: 13 }}>
             Tags next to numbers show their source: <span className="tag chain">chain</span> real on-chain fact (NEAR RPC or a transaction you can open), <span className="tag api">api</span> worker API, <span className="tag recorded">recorded</span> committed run (provenance; its on-chain facts carry a transaction link). A &ldquo;simulated&rdquo; tag appears only if the data itself says so. Not investment advice.
             <div style={{ marginTop: 8 }}>NEAR <strong>testnet</strong> only: no mainnet funds were moved. What is proven and what is not: <a href="https://github.com/tannmayygupta/near/blob/main/docs/CLAIMS.md">claims vs evidence</a> · <a href="https://github.com/tannmayygupta/near/blob/main/docs/JUDGES.md">5-minute judges path</a> · <a href="https://github.com/tannmayygupta/near">source</a>.</div>
-            <div style={{ marginTop: 8 }}>NEAR <strong>testnet</strong> only: no mainnet funds were moved. What is proven and what is not: <a href="https://github.com/tannmayygupta/near/blob/main/docs/CLAIMS.md">claims vs evidence</a> · <a href="https://github.com/tannmayygupta/near/blob/main/docs/JUDGES.md">5-minute judges path</a> · <a href="https://github.com/tannmayygupta/near">source</a>.</div>
           </footer>
         </WalletProvider>
       </body>

@@ -48,3 +48,15 @@ export const complete = (agent: Account, c: string, id: number, reportHash: stri
 export const expire = (agent: Account, c: string, id: number) => call(agent, c, 'expire', { id });
 
 export const nsFromSeconds = (s: number) => s * 1_000_000_000;
+
+/** v2 typed view: version, pause flag, DAO / agent / pending DAO and per-status counts. */
+export interface ContractStats { version: number; paused: boolean; dao: string; agent: string; pending_dao: string | null; mandates: number; approved: number; funded: number; executing: number; settling: number; completed: number; cancelled: number; expired: number; chunks_recorded: number; treasurers_with_trust: number }
+export const getStats = (rpc: string, contract: string) => view<ContractStats>(rpc, contract, 'get_stats');
+
+/** NEP-297 events of a v2 transaction: the `EVENT_JSON:` log lines written by the mandate contract (standard "quiet_treasury"). */
+/** data is an object for the events this contract emits (named-field variants); the array form is tolerated. Use eventData. */
+export interface MandateEvent { standard: string; version: string; event: string; data: Record<string, unknown> | Array<Record<string, unknown>> }
+export const eventPayload = (e: MandateEvent): Record<string, unknown> | undefined => (Array.isArray(e.data) ? e.data[0] : e.data);
+export function parseMandateEvents(logs: string[]): MandateEvent[] {
+  return logs.filter((l) => l.startsWith('EVENT_JSON:')).flatMap((l) => { try { const e = JSON.parse(l.slice('EVENT_JSON:'.length)); return e?.standard === 'quiet_treasury' ? [e as MandateEvent] : []; } catch { return []; } });
+}

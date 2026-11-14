@@ -1,12 +1,15 @@
 [package]
 name = "mandate"
-version = "0.1.0"
+version = "2.0.0"
 edition = "2021"
 license = "MIT"
 description = "Quiet Treasury mandate registry: DAO-only create/cancel, agent-only progress, anchored settlement"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
+
+[features]
+migrate = []
 
 [dependencies]
 near-sdk = "5.9"

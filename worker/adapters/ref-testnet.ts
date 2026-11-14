@@ -12,6 +12,7 @@ import type { Account } from 'near-api-js';
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { KeySigner, type ChainSigner } from './signers';
 import type { MandatePolicy } from './mandate-policy';
+import { RefPriceGuard, inBand } from './price-guard';
 import type { MandateTerms } from '../../src/engine/schema';
 import { dirname } from 'node:path';
 import { OutLayerError } from '../../src/near/outlayer';
@@ -61,7 +62,9 @@ export class RefTestnetAdapter implements OutLayerPort {
   private setupDone = false;
   private cand: { at: number; list: Candidate[]; key: string } | null = null;
   readonly signer: ChainSigner;
+  private guard: RefPriceGuard | null;
   constructor(private o: RefOpts) {
+    this.guard = o.refPrice ? new RefPriceGuard({ fetch: o.refPrice }) : null;
     if (!o.signer && !o.vault) throw new Error('RefTestnetAdapter needs a signer or a vault account');
     this.signer = o.signer ?? new KeySigner(o.vault!);
     this.dex = o.dex ?? REF_DEX;
@@ -147,13 +150,15 @@ export class RefTestnetAdapter implements OutLayerPort {
       const g = await view<any>(this.o.rpc, this.dex, 'get_pool', { pool_id: c.id }).catch(() => null);
       if (g) fresh.push({ ...c, amounts: g.amounts, fee: g.total_fee });
     }
-    const ref = tokenIn === WRAP && this.o.refPrice ? await this.o.refPrice().catch(() => null) : null;
+    // FAIL CLOSED: if a reference price is configured but unavailable (and no recent good one exists) the band cannot be applied, so we do not trade at all
+    let ref: number | null = null;
+    if (tokenIn === WRAP && this.guard) { try { ref = await this.guard.get(); } catch (e) { throw new OutLayerError('upstream', 503, { message: (e as Error).message }); } }
     const [lo, hi] = this.o.band ?? [0.2, 5];
     let best: { id: number; out: bigint; feeBps: number } | null = null;
     for (const c of fresh) {
       const { rIn, rOut } = this.reserves(c, tokenIn);
       if (rIn < amountIn * 5n) continue; // too thin for this trade
-      if (ref) { const spot = Number(rOut) / 1e6 / (Number(rIn) / 1e24); if (!(spot >= ref * lo && spot <= ref * hi)) continue; } // absurd test pool
+      if (ref !== null) { const spot = Number(rOut) / 1e6 / (Number(rIn) / 1e24); if (!inBand(spot, ref, [lo, hi])) continue; } // absurd test pool
       const out = BigInt(await view<string>(this.o.rpc, this.dex, 'get_return', { pool_id: c.id, token_in: tokenIn, amount_in: amountIn.toString(), token_out: tokenOut }));
       if (!best || out > best.out) best = { id: c.id, out, feeBps: c.fee };
     }

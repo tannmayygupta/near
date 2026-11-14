@@ -1,0 +1,42 @@
+{
+  "network": "testnet",
+  "recordedAt": "2026-11-14T02:59:40.075Z",
+  "contract": "qtmandate2-83872.testnet",
+  "dao": "quietdao-83872.sputnikv2.testnet",
+  "agent": "qtagent-68669.testnet",
+  "wasmBytes": 369245,
+  "localCodeHash": "Goj1eumfHA866p2MiZEQHHrK9FvFvZ12Ek5LLASdFHV9",
+  "deployTx": "D7e16u1nLErsVgm8nrxNqo84mP7yYpCfAmF8m3bE5H7T",
+  "initTx": "9abAPgHhn8DM3rHyHvymJMoCwbtghC8XPPthUXbq7END",
+  "onChainCodeHash": "Goj1eumfHA866p2MiZEQHHrK9FvFvZ12Ek5LLASdFHV9",
+  "matchesLocalWasm": true,
+  "stats": {
+    "version": 2,
+    "paused": false,
+    "dao": "quietdao-83872.sputnikv2.testnet",
+    "agent": "qtagent-68669.testnet",
+    "pending_dao": null,
+    "mandates": 0,
+    "approved": 0,
+    "funded": 0,
+    "executing": 0,
+    "settling": 0,
+    "completed": 0,
+    "cancelled": 0,
+    "expired": 0,
+    "chunks_recorded": 0,
+    "treasurers_with_trust": 0
+  },
+  "sourceMetadata": {
+    "version": "2.0.0",
+    "link": "https://github.com/tannmayygupta/near/tree/main/contracts/mandate",
+    "standards": [
+      {
+        "standard": "nep330",
+        "version": "1.2.0"
+      }
+    ],
+    "build_info": null
+  },
+  "explorer": "https://explorer.testnet.near.org/accounts/qtmandate2-83872.testnet"
+}

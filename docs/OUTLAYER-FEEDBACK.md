@@ -17,5 +17,5 @@ Replaying `X-Idempotency-Key` on `/wallet/v1/call` returns `{"error":"duplicate_
 ## What worked well (and we rely on)
 * Programmatic policy: `encrypt-policy` -> `sign-policy` -> `store_wallet_policy` (`src/near/outlayer-policy.ts`), rewritten per mandate.
 * `/call` for arbitrary contract calls (wrap, Ref `ft_transfer_call`, `storage_deposit`) with correct on-chain failure reporting (HTTP 422 `onchain_tx_failed`).
-* Idempotency really deduplicates: after a simulated worker crash a replayed swap resolved to the original transaction instead of swapping twice (`data/demo-run/restart-run.json`, 12/12).
+* Idempotency really deduplicates: after a simulated worker crash a replayed swap resolved to the original transaction instead of swapping twice (`data/demo-run/restart-run.json`, 13/13).
 * Clear 403 `policy_denied` messages naming the address or limit.

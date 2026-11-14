@@ -35,3 +35,14 @@ export async function mainnetRefPrice(): Promise<number | null> {
     return (Number(BigInt(q.amountOut)) / 1e6) / 0.1;
   } catch { return null; }
 }
+
+
+/** Put the key-held vault back to a clean float: unwrap any wNEAR it holds into native NEAR (the rebalancer and earlier aborted runs can leave some),
+ *  because wNEAR the vault holds counts as DAO-funded budget and would break the "vault starts empty" checks. Idempotent. */
+export async function resetVaultFloat(vault: import('near-api-js').Account, rpc: string): Promise<string> {
+  const { view, TGAS } = await import('../../src/near/chain.js');
+  const w = BigInt(await view<string>(rpc, 'wrap.testnet', 'ft_balance_of', { account_id: vault.accountId }).catch(() => '0'));
+  if (w > 0n) await vault.callFunctionRaw({ contractId: 'wrap.testnet', methodName: 'near_withdraw', args: { amount: w.toString() }, gas: TGAS(30), deposit: 1n });
+  await new Promise((r) => setTimeout(r, 10_000)); // gas-refund receipts of the previous transactions land a few blocks later and would otherwise count as budget
+  return w.toString();
+}

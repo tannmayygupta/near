@@ -25,14 +25,14 @@ The worker refuses to touch a sealed mandate until the terms are delivered **and
 
 Unit tests with good and tampered inputs: `tests/sealed-verify.test.ts` (11 tests). The live run: `scripts/testnet/e2e-sealed.ts` -> `data/demo-run/sealed-run.json` and `sealed-proof-bundle.json`.
 
-## Recorded evidence (public NEAR testnet, mandate #12, real Ref swaps)
+## Recorded evidence (public NEAR testnet, mandate #13, real Ref swaps)
 
-`scripts/testnet/e2e-sealed.ts` passed **36/36** (`data/demo-run/sealed-run.json`); the verifier CLI passes **21/21** on `data/demo-run/sealed-proof-bundle.json`.
+`scripts/testnet/e2e-sealed.ts` passed **37/37** (`data/demo-run/sealed-run.json`); the verifier CLI passes **21/21** on `data/demo-run/sealed-proof-bundle.json`.
 
-- Commitment (public from the first block): `dfef3748196922e406c2164f03d66702aeada2a1cbad162efb629274b0d7bce4`; the price floor was derived from the live Ref pool #57 (spot 2.395 -> floor 1.19).
-- [create_mandate proposal (terms_json = null)](https://explorer.testnet.near.org/transactions/BFKKpZZ2zo2FfagzLKuEqMU1f7k6PvAM5WXNeNEpiWod) -> [vote 2/3 executes](https://explorer.testnet.near.org/transactions/97ra76kHFniP9k6M3kWx1pRPkhy9eJeKxKLgtkpm1A51) -> [real DAO funding transfer (vote 2/3)](https://explorer.testnet.near.org/transactions/J7rr8mEWH5JX4sfP5JBZ3rJDspjHueg1FBdGBAgimKa3).
-- Real swaps on Ref Finance testnet ([first swap](https://explorer.testnet.near.org/transactions/5TsHsLYMrHJ4hxdua7T4Ko6EUv5q8S7eTzs1ho4iNVq1), [chunk 0 recorded](https://explorer.testnet.near.org/transactions/HgQkgWr2bkPGM142KwKXif8tEbVh1JXzkDWCYbDXF3T1)), real USDT.e payouts, fee and returns ([payout](https://explorer.testnet.near.org/transactions/FXjKXFbz3czkevR9nwLzpw9pJCUhR9up781xzM7vK1EZ)).
-- [Settlement + on-chain reveal](https://explorer.testnet.near.org/transactions/FdSsFwgcCCch3TVaiyegfUichg4RViLkZLEEcTAqbiQ8).
+- Commitment (public from the first block): `02c68c1a0012da95b11fdd3f1face5a3d322ddeb98f8aeb3e433eee8616f458a`; the price floor (2.24 USDT.e per NEAR) was derived from the live Ref pool #57 and stays hidden until settlement.
+- [create_mandate proposal (terms_json = null)](https://explorer.testnet.near.org/transactions/GGwhzq4HFeL8yYyvwCUgsagEanrHKoGieATHdArbvH9f) -> [vote 2/3 executes](https://explorer.testnet.near.org/transactions/2jCa37c4SDTTCb5CoUTfWwKq5LTMZhARCfKN5cowsKPU) -> [real DAO funding transfer (vote 2/3)](https://explorer.testnet.near.org/transactions/BRxCLYRttj5i8DDsGWS3vrhMFkBTutjRyLqSaSM7y4Yq).
+- Real swaps on Ref Finance testnet ([first swap](https://explorer.testnet.near.org/transactions/JjGn1Wmxq3QaefAYp4bjme4xSjVn57DPcTQqReP43WF), [chunk 0 recorded](https://explorer.testnet.near.org/transactions/Gr63b3PTCHtWHj1xgULcSkWQowfCVSHZgx9mJuK7RCwS)), real USDT.e payouts, fee and returns ([payout](https://explorer.testnet.near.org/transactions/8bbLFQfSewTb75pCszjYmqMrJQqLfADULceJ1KQ5SUD9)).
+- [Settlement + on-chain reveal](https://explorer.testnet.near.org/transactions/2PviWNGSjGg9tF96eFNvUmdtbk3Q2BFHefkYUx86WuVz).
 - Access control, live against the worker API: unsigned, non-council, wrong-action and impersonated requests -> 401; council-signed -> 200; sealed terms stored encrypted at rest.
 - Tamper checks on the real bundle: changed floor, changed salt, swapped recipient, terms public early, secret leaked into the public view -> each makes the verifier **fail**.
 - Design note: the treasurer, council members and agent are public by design (mandate fields, proposal proposer/votes), so recipients in the sealed run are accounts that appear nowhere in the public pre-reveal view (a first attempt that reused the treasurer as a recipient correctly failed the leak check).
