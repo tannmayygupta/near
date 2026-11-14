@@ -59,10 +59,13 @@ export function View<T>({ a, what, children }: { a: Async<T>; what: string; chil
 }
 
 export function Stat({ k, v, s }: { k: string; v: ReactNode; s?: Source }) {
+  // Short figures are shown big; a long sentence or a long id would shout, so those get a compact style (presentation only).
+  const text = typeof v === 'string' ? v : null;
+  const cls = text && text.length > 16 ? (/\s/.test(text) ? 'v long' : 'v id') : 'v';
   return (
     <div className="card stat">
       <div className="k">{k}{s && <Src s={s} />}</div>
-      <div className="v">{v}</div>
+      <div className={cls}>{v}</div>
     </div>
   );
 }

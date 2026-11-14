@@ -39,7 +39,7 @@ Full claim-by-claim table with status (VERIFIED-TESTNET / LOCAL / UNVERIFIED): `
 
 ## 3. See it, and check a run in your own browser
 
-`npm --prefix app ci && npm run dashboard` -> http://localhost:3100 (reads the same recorded runs and live testnet RPC), or the hosted static copy: https://tannmayygupta.github.io/near/. Pages: DAO, wizard, votes, reputation, live run, **my payouts** (`/me`: type any account, see every payout, fee and return it received in the recorded runs plus its live USDT.e balance), copycat view, red team, report, routes, **custody**, sealed, verify, ledger, **recompute**.
+`npm --prefix app ci && npm run dashboard` -> http://localhost:3100 (reads the same recorded runs and live testnet RPC), or the hosted static copy: https://tannmayygupta.github.io/near/. Pages: home (the landing plus the live treasury overview), wizard, votes, reputation, live run, **my payouts** (`/me`: type any account, see every payout, fee and return it received in the recorded runs plus its live USDT.e balance), copycat view, red team, report, routes, **custody**, sealed, verify, ledger, **recompute**.
 
 **`/recompute`** is the shortest proof: pick a recorded run and your browser re-reads the mandate from the contract (`qtmandate2-83872.testnet`) and every chunk and completion transaction from public RPC, then re-derives the commitment hash, the chunk sums, the price floor and the report hash. Nothing of ours is trusted in that path: no worker, no database. It is the same code the unit tests run (`app/lib/recompute.ts`, `tests/recompute.test.ts`).
 

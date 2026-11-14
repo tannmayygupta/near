@@ -1,12 +1,13 @@
 'use client';
 import { ENV, getBalances, getDaoPolicy, getRealRun, withRecordedFallback } from '@/lib/data';
 import { VaultBalances, WhatIsReal } from '@/components/real';
-import { PageHead, Src, Stat, useAsync, View } from '@/components/ui';
+import { Src, Stat, useAsync, View } from '@/components/ui';
 import { Acct } from '@/components/acct';
 import { MandateTable, loadMandates, TIER_RULES } from '@/components/mandates';
 import { BOUNDS, type Balances } from '@/lib/types';
 import { fmtUnits } from '@/lib/data';
 import { StartHere } from '@/components/start-here';
+import { CheckBand, Hero, HowItWorks, Layers } from '@/components/landing';
 
 function Config() {
   const rows: [string, string][] = [
@@ -43,8 +44,13 @@ export default function Page() {
   const vault = !run.loading && run.result.ok ? run.result.data.real.vault.accountId : null;
   return (
     <>
-      <PageHead title="Treasury overview" lead="A DAO votes once on a plain-English mandate. An agent executes it in chunks, stays inside the mandate, and posts a verifiable settlement report. The execution shown here is real on the public NEAR testnet; the confidential, mainnet-only parts are marked as not proven." />
+      <Hero />
+      <HowItWorks />
+      <Layers />
       <StartHere />
+      <CheckBand />
+      <h2 className="overview-title">Treasury overview</h2>
+      <p className="lead">The live view behind the story above: what is real on the public NEAR testnet, what the DAO and the agent hold right now, and every mandate. The confidential, mainnet-only parts are marked as not proven.</p>
       <WhatIsReal />
       <h2>Connection</h2>
       <Config />
