@@ -1,7 +1,7 @@
 // Where account keys are written. Default: data/secret (git-ignored, inside the repo). Override: QT_SECRET_DIR (for example a folder on another drive).
 // Nothing here prints a key. A mainnet command refuses to run if the secret directory sits inside a cloud-synchronised folder (OneDrive, Dropbox, ...).
 import { chmodSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
-import { dirname, isAbsolute, resolve, sep } from 'node:path';
+import * as nodePath from 'node:path';
 
 export const DEFAULT_SECRET_DIR = 'data/secret';
 type Env = Record<string, string | undefined>;
@@ -16,15 +16,21 @@ export function secretPath(name: string, env: Env = process.env): string {
   return `${secretDir(env)}/${name}`;
 }
 
-const norm = (p: string) => resolve(p).toLowerCase();
-const underDir = (child: string, parent: string) => norm(child) === norm(parent) || norm(child).startsWith(norm(parent) + sep);
+/** A path that starts with a drive letter or \\\\ is a Windows path on EVERY OS: use win32 rules for it, so the same input gives the same answer on a Windows laptop and on a Linux CI runner. */
+const looksWindows = (p: string) => /^[A-Za-z]:[\\/]/.test(p) || p.startsWith('\\\\');
+const pathFor = (...ps: string[]) => (ps.some(looksWindows) ? nodePath.win32 : nodePath);
+const underDir = (child: string, parent: string) => {
+  const m = pathFor(child, parent), n = (x: string) => m.resolve(x).toLowerCase();
+  return n(child) === n(parent) || n(child).startsWith(n(parent) + m.sep);
+};
 
 /** Folders that a sync client uploads. Environment roots (Windows sets these) plus well-known names anywhere in the path. */
 export function syncedRoots(env: Env = process.env): string[] {
   return ['OneDrive', 'OneDriveConsumer', 'OneDriveCommercial'].map((k) => env[k]).filter((v): v is string => !!v);
 }
 export function isSyncedPath(path: string, env: Env = process.env, cwd = process.cwd()): { synced: boolean; why: string } {
-  const abs = isAbsolute(path) ? path : resolve(cwd, path);
+  const pm = pathFor(path, cwd, ...syncedRoots(env));
+  const abs = pm.isAbsolute(path) ? path : pm.resolve(cwd, path);
   for (const r of syncedRoots(env)) if (underDir(abs, r)) return { synced: true, why: `inside the OneDrive folder ${r}` };
   const m = abs.match(/(^|[\\/])(onedrive[^\\/]*|dropbox|google drive|icloud drive|iclouddrive|box sync|sync\.com)([\\/]|$)/i);
   if (m) return { synced: true, why: `the path contains a synchronised-folder name ("${m[2]}")` };
@@ -34,7 +40,8 @@ export function isSyncedPath(path: string, env: Env = process.env, cwd = process
 export interface SecretDirReport { dir: string; resolved: string; synced: boolean; why: string; overridden: boolean; insideRepo: boolean }
 export function inspectSecretDir(env: Env = process.env, cwd = process.cwd(), repoRoot = cwd): SecretDirReport {
   const dir = secretDir(env);
-  const resolved = isAbsolute(dir) ? resolve(dir) : resolve(cwd, dir);
+  const m = pathFor(dir, cwd, repoRoot);
+  const resolved = m.isAbsolute(dir) ? m.resolve(dir) : m.resolve(cwd, dir);
   const s = isSyncedPath(resolved, env, cwd);
   return { dir, resolved, synced: s.synced, why: s.why, overridden: !!env.QT_SECRET_DIR?.trim(), insideRepo: underDir(resolved, repoRoot) };
 }
@@ -55,7 +62,7 @@ export function requireSafeSecretDir(mainnet: boolean) {
 
 /** Create the secret directory (owner-only where the OS supports it) and write one file the same way. Never logs content. */
 export function writeSecretFile(path: string, content: string) {
-  const dir = dirname(path);
+  const dir = nodePath.dirname(path);
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true, mode: 0o700 });
   writeFileSync(path, content, { mode: 0o600 });
   try { chmodSync(path, 0o600); } catch { /* Windows: POSIX modes are not enforced; the folder ACL of the user profile applies */ }
