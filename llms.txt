@@ -1,35 +1,38 @@
 # Quiet Treasury
 
-> A NEAR DAO votes once on a plain-English mandate (parsed by a TEE model into bounded terms). A bounded agent executes it in price-floored chunks, pays contributors, returns leftovers to the DAO and anchors a verifiable settlement report on-chain. Public NEAR testnet; no mainnet funds were moved.
+> A NEAR DAO votes once on a plain-English mandate (drafted by a TEE model into bounded terms). A bounded agent executes it in price-floored chunks from an OutLayer wallet, pays contributors, returns leftovers to the DAO and anchors a verifiable settlement report on-chain. Demonstrated end to end on public NEAR testnet. A mainnet deployment kit is implemented and rehearsed on testnet; a mainnet run has not been executed.
 
-This file is a map, not evidence. Verify with the commands below; `docs/CLAIMS.md` lists every claim with its status (VERIFIED-TESTNET, LOCAL, SIMULATED, UNVERIFIED, NOT IMPLEMENTED).
+This file is a map, not evidence. Verify with the commands below; `docs/CLAIMS.md` lists every claim with its status (VERIFIED-TESTNET, LOCAL, SIMULATED, UNVERIFIED, NOT IMPLEMENTED), and the README's "Verification evidence" table names the environment (local, CI or NEAR testnet) of every result.
 
 ## Run
-- `npm ci && npm test` : 396 unit tests (vitest), no network or keys needed
+- `npm ci && npm test` : 396 unit tests (vitest, 24 files), no network or keys needed
 - `npm run demo` : the whole story offline (labelled simulation, ~2 s)
 - `npm run verify` : independent verifier over three recorded proof bundles (13 + 21 + 16 checks, offline)
-- `npm run secret-scan` : repository secret scan
-- `npm run dashboard` : Next.js dashboard on :3100 (after `npm --prefix app ci`); its `/recompute` page re-derives a recorded run from public RPC in the browser
+- `npm run secret-scan` : repository secret scan (working tree and history)
+- `npm run dashboard` : Next.js dashboard on :3100 (after `npm --prefix app ci`); its `/recompute` page re-derives a recorded run from public RPC in the browser (11/11 for the custody run)
 - `npm run verify:contract` and `npm run check:evidence` : network checks (deployed contract hash == committed wasm; every cited tx exists on testnet: 201/201)
+- `npm run contract:methods` : the contract's 19 public methods, cross-checked against the compiled wasm
 
 ## Read first
-- `docs/JUDGES.md` : 5-minute path, what is proven and what is not
-- `docs/TRACKS.md` : per-track proof map with a command per claim; `docs/AI_DISCLOSURE.md`
-- `README.md` : per-track explanation, architecture, NEAR technology map
-- `docs/CLAIMS.md` : claims vs evidence
-- `SECURITY.md` : what each safety layer stops and does not stop, what a stolen key or a hostile operator can and cannot do, known limits, how to report a problem
+- `docs/JUDGES.md` : a timed 5-minute path
+- `docs/TRACKS.md` : per-track feature, value, demonstrated workflow and evidence
+- `README.md` : product, per-track explanation, architecture, NEAR technology map, verification evidence table
+- `docs/CLAIMS.md` : claims vs evidence; `docs/MAINNET-CLAIMS-GATE.md` : what is and is not claimed about mainnet, per track
+- `SECURITY.md` : what each safety layer stops and does not stop; what a stolen key or a hostile operator can and cannot do
 - `docs/CUSTODY.md` : OutLayer custody wallet, per-mandate policy, what the policy does and does not enforce
+- `docs/CONTRACT.md` : contract architecture, method inventory, atomic deployment, verification
+- `docs/MAINNET.md`, `docs/MAINNET-DEPLOYMENT-PLAN.md`, `docs/MAINNET-RELEASE-AUDIT.md` : the mainnet deployment kit, plan and release audit (reproducible build verified byte-for-byte)
 - `docs/OUTLAYER-FEEDBACK.md` : reproducible findings about OutLayer's API (for the sponsor)
-- `docs/SEALED.md`, `docs/DEFI.md`, `docs/ARCHITECTURE.md`, `docs/RUNBOOK.md`, `docs/CONTRACT.md`, `docs/adr/` (decisions and what they rejected), `docs/incidents/` (what really failed), `CONTEXT.md` (vocabulary), `AGENTS.md`
+- `docs/SEALED.md`, `docs/DEFI.md`, `docs/ARCHITECTURE.md`, `docs/RUNBOOK.md`, `docs/adr/` (decisions and what they rejected), `docs/incidents/` (what really failed), `CONTEXT.md` (vocabulary), `AGENTS.md`
 
 ## Code map
-- `contracts/mandate/` : Rust mandate contract v2 (state machine, idempotent chunk records, report anchoring, trust score, NEP-297 events, versioned state, pause, two-step DAO handover); `docs/CONTRACT.md`, 36 tests
-- `src/near/` : clients (Sputnik DAO, mandate contract, NEAR AI Cloud, OutLayer, Intents 1Click, near.social)
+- `contracts/mandate/` : Rust mandate contract v2 (state machine, idempotent chunk records, report anchoring, trust score, NEP-297 events, versioned state, pause, two-step DAO handover), 36 tests
+- `src/near/` : clients (Sputnik DAO, mandate contract, NEAR AI Cloud, OutLayer, Intents 1Click, near.social) and the mainnet kit logic (atomic deploy, preflight, verification)
 - `src/engine/` : mandate schema (zod), parser, hashing, benchmark
 - `src/verify/` : independent verifier
 - `worker/` : executor, guards, sqlite state, API, red team; `worker/adapters/` : Ref testnet adapter, signers (key or OutLayer custody), per-mandate policy
-- `scripts/testnet/` : end-to-end runs on public testnet; `data/demo-run/` : recorded runs and proof bundles (every transaction has an explorer link)
-- `app/` : dashboard
+- `scripts/testnet/` : end-to-end runs on public testnet; `scripts/mainnet/` : preflight, setup, verify, contract tests; `data/demo-run/` : recorded runs and proof bundles (every transaction has an explorer link)
+- `app/` : dashboard (16 pages, including `/mainnet`, which reports what has run on mainnet from published files)
 
 ## Network
-NEAR testnet. DAO `quietdao-83872.sputnikv2.testnet`, mandate contract `qtmandate2-83872.testnet` (v2; v1 `qtmandate-83872.testnet` stays on chain, its recordings are tagged `v1-recorded-runs` in git).
+Public NEAR testnet. DAO `quietdao-83872.sputnikv2.testnet`, mandate contract `qtmandate2-83872.testnet` (v2; v1 `qtmandate-83872.testnet` stays on chain, its recordings are tagged `v1-recorded-runs` in git).

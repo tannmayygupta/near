@@ -2,25 +2,26 @@
 
 **Vote once. The agent does the rest, inside limits it cannot break.**
 
-Quiet Treasury lets a DAO approve a plain-English instruction such as *"sell up to 500 NEAR for USDC over 3 days, never below 3.50, then pay these five contributors"*, and turns that single vote into a bounded, verifiable, autonomous execution on NEAR. A private AI drafts the mandate, a Sputnik DAO approves it, our Rust contract enforces it on-chain, an agent carries it out in price-floored chunks, and anyone can independently verify the settlement report afterwards.
+Quiet Treasury turns one DAO vote into a bounded, autonomous and independently verifiable treasury operation on NEAR. A DAO approves a plain-English instruction such as *"sell up to 500 NEAR for USDC over 3 days, never below 3.50, then pay these five contributors"*. A private AI (NEAR AI Cloud TEE) drafts the mandate, a Sputnik DAO approves it, our Rust contract enforces it on-chain, an agent carries it out in price-floored chunks from an OutLayer wallet, and anyone can recompute the settlement report in their own browser.
 
-Built for **NEAR HACKATHON 2026**. Everything in this repository was written during the hackathon window. The full flow runs for real on **public NEAR testnet** (every step has an explorer link below); the parts that only exist on mainnet are clearly marked as such in [What is proven](#what-is-proven-and-what-is-not).
+Built for **NEAR HACKATHON 2026** and written during the hackathon window. The complete flow is demonstrated on **public NEAR testnet**, with an explorer link for every step.
 
 [![CI](https://github.com/tannmayygupta/near/actions/workflows/ci.yml/badge.svg)](https://github.com/tannmayygupta/near/actions/workflows/ci.yml)
 
-**Live demo:** https://tannmayygupta.github.io/near/ (static: the recorded runs plus live testnet RPC reads; the wizard's live AI parse and the red-team "Run attack" buttons need the worker, so run those locally).
-**For judges (5 minutes):** [docs/JUDGES.md](docs/JUDGES.md) · claims vs evidence: [docs/CLAIMS.md](docs/CLAIMS.md) · track proof map: [docs/TRACKS.md](docs/TRACKS.md) · AI disclosure: [docs/AI_DISCLOSURE.md](docs/AI_DISCLOSURE.md) · security model and limits: [SECURITY.md](SECURITY.md) · machine-readable map: [llms.txt](llms.txt)
-**Run it, no keys needed:** `npm ci && npm test && npm run verify` (396 unit tests; independent verifier on three recorded runs) and `npm run demo` (the whole story offline in about 2 seconds: a labelled simulation with a transcript and an exit code).
-**No mainnet money was moved.** Everything real here is on public testnet; the mainnet-only parts are listed as *not proven* below.
+| | |
+|---|---|
+| **Live dashboard** | https://tannmayygupta.github.io/near/ (recorded runs plus live testnet RPC reads; live AI parsing and live attacks run with the local worker) |
+| **For judges, 5 minutes** | [docs/JUDGES.md](docs/JUDGES.md) · [track proof map](docs/TRACKS.md) · [claims vs evidence](docs/CLAIMS.md) · [security model](SECURITY.md) · [AI disclosure](docs/AI_DISCLOSURE.md) · [llms.txt](llms.txt) |
+| **Run it, no keys** | `npm ci && npm test && npm run verify` (396 tests; independent verifier over three recorded runs) · `npm run demo` (the whole story offline in about 2 seconds) |
+| **Scope** | Demonstrated end to end on public NEAR testnet; every result is listed with its environment in [Verification evidence](#verification-evidence). A mainnet deployment kit is implemented and rehearsed on testnet; a mainnet run has not been executed ([status](https://tannmayygupta.github.io/near/mainnet/)). |
 
 ## Quiet Treasury in 30 seconds
 
 - 🗳️ **One vote, not a hundred trades.** The DAO votes once on a plain-English mandate (token, budget, price floor, window, payouts). It never gives anyone the ability to do more.
 - 🤖 **The AI drafts, code decides.** A NEAR AI Cloud TEE model drafts the terms (signed and attested); code re-validates every bound; the AI never holds a key.
 - 🔐 **Three independent safety layers.** The NEAR protocol scopes the agent's key to five methods, an OutLayer wallet policy is written per mandate, and our contract plus executor enforce budget, window, token and destination. Every refusal names its layer.
-- ♻️ **It survives a crash.** Kill the worker right after a real swap landed: a new one finishes without swapping twice (live on testnet, 13/13).
-- 🔍 **Don't trust us, check.** `npm run demo` (offline story), `npm run verify` (independent verifier, tamper cases), `npm run check:evidence` (every cited transaction exists: 201/201), `npm run verify:contract` (the deployed contract is the committed wasm).
-- 🧪 **Honest about testnet.** No mainnet funds were moved; what is quoted but not executed is labelled in every document.
+- ♻️ **It survives a crash.** Kill the worker right after a real swap landed: a new one finishes without swapping twice (13/13 on testnet).
+- 🔍 **Check it yourself.** `npm run verify` (independent verifier with tamper cases), `/recompute` (your browser re-derives a run from public RPC), `npm run check:evidence` (201/201 transactions exist), `npm run verify:contract` (the deployed contract is the committed, reproducibly built wasm).
 
 ## Live on NEAR testnet
 
@@ -37,17 +38,36 @@ Built for **NEAR HACKATHON 2026**. Everything in this repository was written dur
 | Check a run yourself, in the browser | [`/recompute`](https://tannmayygupta.github.io/near/recompute/): re-reads the contract and the transactions from public RPC |
 | Recorded runs and proof bundles | [`data/demo-run/`](data/demo-run/) (`custody-run.json`, `restart-run.json`, `sealed-run.json`, `run.json`) |
 
-Everything above is public **testnet**. As of 14 November 2026: 6 real Ref swaps and 4 payouts/fee/returns in the custody run, a 13/13 crash-restart, 396 unit tests plus 36 contract tests, 201 cited transactions all found on-chain. No mainnet transactions exist.
+Everything above is public **testnet**, with recorded runs and a [verification evidence table](#verification-evidence) that names the environment of every result.
 
 ### How this maps to how we are judged
 The Loops page shows this rubric for the Social Money, Autonomous Business, Privacy and Real-World Money tracks: NEAR technology usage 35%, real not simulated 25%, track fit 20%, execution and completeness 20%.
 
-| Criterion | Where to check | Honest status |
+| Criterion | Where to check | Status |
 |---|---|---|
-| NEAR technology usage (35%) | Sputnik DAO v2 proposals, our Rust contract (deployed code hash equals the committed wasm: `npm run verify:contract`), NEAR AI Cloud TEE (signed, attested), **OutLayer agent wallet as the vault + per-mandate wallet policy** ([docs/CUSTODY.md](docs/CUSTODY.md)), near.social, NEAR Intents quotes. Map: [NEAR technology map](#near-technology-map-where-to-look-in-the-code) | Intents execution and confidential swaps are quoted only |
-| Real, not simulated (25%) | Every transaction in the recorded runs is on public testnet and checked to exist (`npm run check:evidence`, `data/evidence-check.json`): DAO votes and funding transfers, real Ref swaps, payouts, returns, report anchoring | **Testnet only. No mainnet funds.** Tokens are play money; chunking gives no price gain on the thin pool and the report says so |
-| Track fit (20%) | One section per track below: what it means, the problem it solves here, a scenario, proof, the limit | Seven tracks claimed, each scoped honestly |
-| Execution and completeness (20%) | 396 unit tests, 36 contract tests (31 unit + 5 property tests), CI, four end-to-end runs (30/30, 37/37, 37/37 and a 13/13 crash-restart), 15-page dashboard, three independent-verifier bundles | Hosted demo is static (no worker behind it); see Status |
+| NEAR technology usage (35%) | Sputnik DAO v2 proposals, our Rust contract (the deployed code hash equals the committed wasm: `npm run verify:contract`), NEAR AI Cloud TEE (signed, attested), **OutLayer agent wallet as the vault with a per-mandate wallet policy** ([docs/CUSTODY.md](docs/CUSTODY.md)), near.social, NEAR Intents live quotes. Map: [NEAR technology map](#near-technology-map-where-to-look-in-the-code) | Implemented and validated on public testnet |
+| Real, not simulated (25%) | 201 distinct transactions cited in this repository were each looked up on public testnet and all exist (`npm run check:evidence`, `data/evidence-check.json`): DAO votes and funding transfers, real Ref swaps, payouts, returns, report anchoring | Real transactions on public NEAR testnet (play-money tokens); a mainnet run has not been executed |
+| Track fit (20%) | One section per track below: the feature, the problem it solves, a scenario, the proof | Seven tracks, each with a demonstrated testnet workflow |
+| Execution and completeness (20%) | 396 unit tests, 36 contract tests, CI, four end-to-end runs (30/30, 37/37, 37/37, 13/13), a 16-page dashboard, three independent-verifier bundles, a byte-identical reproducible build | Complete for the demonstrated scope |
+
+## Verification evidence
+Every row names its environment and the file or command that reproduces it. Results are from CI, local executions and recorded runs on NEAR testnet, dated 14 November 2026.
+
+| Area | Result | Environment | Reproduce / source |
+|---|---|---|---|
+| Contract unit and property tests | **36 pass** (31 unit + 5 property); **37** with the v1 to v2 migration build | Local (pinned `rust:1.99.1-bookworm` image) and CI | `cargo test --release` · CI job "Rust contract tests" |
+| Application and unit tests | **396 pass** in 24 files: parser, planner, settlement, executor edge cases, custody policy, sealed checks, recompute, deployment sequence, preflight, secret handling | Local and CI (green on `6749e3c`) | `npm test` |
+| Integration: tests against a deployed contract | **21/21** (view checks, 11 access-restriction rejections, state unchanged) and **15/15** on-chain verification | NEAR testnet (rehearsal contract) | `data/rehearsal-test-report.json`, `data/rehearsal-verify.json` |
+| End-to-end scenarios | **30/30** key-held vault · **37/37** OutLayer custody (6 real Ref swaps, 4 payouts, fee and returns) · **37/37** sealed mandate | NEAR testnet | `data/demo-run/run.json`, `custody-run.json`, `sealed-run.json` · `npm run e2e:real`, `e2e:custody`, `e2e:sealed` |
+| Crash, restart and recovery | **13/13**: the worker is killed right after a swap landed; a new worker finishes without swapping twice | NEAR testnet | `data/demo-run/restart-run.json` · `npm run e2e:restart` |
+| Independent verification | **13 + 21 + 16** checks over three proof bundles, including tamper cases | Local (offline) and CI | `npm run verify` |
+| Browser-side recomputation | **11/11** checks re-derived from public RPC for the custody run: contract state, chunk transactions, sums, price floor, report hash | Browser and NEAR testnet RPC | [`/recompute`](https://tannmayygupta.github.io/near/recompute/) · `app/lib/recompute.ts` · `tests/recompute.test.ts` |
+| Reproducible WASM | Rebuild is **byte-for-byte identical** to the committed artifact: 369,245 bytes, SHA-256 `ead785fd...1870`, NEAR code hash `Goj1eumf...FHV9`, equal to the deployed testnet contract | Local (pinned Docker image) and NEAR testnet RPC | `scripts/build-contract.ps1` · `npm run verify:contract` · [docs/MAINNET-RELEASE-AUDIT.md](docs/MAINNET-RELEASE-AUDIT.md) |
+| On-chain evidence audit | **201/201** cited transactions exist | NEAR testnet (two indexers) | `npm run check:evidence` · `data/evidence-check.json` |
+| Security checks | Secret scan **0 findings** (working tree and history) · **6/6** red-team attacks blocked · **8/8** protocol-level refusals of the scoped agent key | Local and CI · NEAR testnet | `npm run secret-scan` · `custody-run.json` (`redteam`, `protocolScope`) |
+| Contract method inventory | 19 public methods (7 views, 11 access-restricted, 1 init); the compiled wasm exports match the source | Local | `npm run contract:methods` |
+
+**Mainnet.** A deployment kit (atomic deploy-and-initialise, read-only preflight, on-chain verification, a contract test script) is implemented and has been rehearsed on testnet. No mainnet deployment or transaction has been executed, and none of the results above is a mainnet result. Live status, computed from published files: [/mainnet](https://tannmayygupta.github.io/near/mainnet/) · procedure: [docs/MAINNET.md](docs/MAINNET.md).
 
 ---
 
@@ -86,7 +106,7 @@ NEAR's hackathon tracks name real capabilities. Here is what each one means and 
 **The problem it solves for us:** a DAO needs to delegate treasury work without delegating trust.
 **How it works in our scenario:** the council does not sign trades; it votes on a *mandate*. The agent only starts after a real Sputnik proposal executes, and a second proposal moves native NEAR into the vault. Approval tiers decide how many votes a mandate needs (small: one, mid: a council majority, large: all). Every settled mandate raises its treasurer's **on-chain trust score**, and that reputation is mirrored to **near.social** against their named account, so every point traces to a finished mandate. The DAO even posts its own announcements to near.social through a voted proposal.
 **Proof:** [funding proposal](https://explorer.testnet.near.org/transactions/Fdhj7e497DvCBwYoYFabMsHewcnYf8E8nhYY6WfW398p) and [the vote that executes it](https://explorer.testnet.near.org/transactions/8qUeXDBPsRWS9SXY2gBC6E4y8qUuPPb53ohDHNFCij1Y), [DAO-voted near.social post](https://explorer.testnet.near.org/transactions/9Z3Tef3hXnuDSLoMwwWEHdCZgygwDiCzDqQHtDtGQ3c5), the dashboard `/votes` and `/reputation` pages, `worker/guards.ts`, `src/near/sputnik.ts`, `src/near/social.ts`.
-**Honest limit:** Trezu needs a wallet sign-in so we could not view our DAO there; a Trezu treasury is a Sputnik DAO v2, the same contract we run (see [docs/TREZU.md](docs/TREZU.md)).
+**Scope:** Trezu needs a wallet sign-in so we could not view our DAO there; a Trezu treasury is a Sputnik DAO v2, the same contract we run (see [docs/TREZU.md](docs/TREZU.md)).
 
 ### Autonomous Business - *AI-native businesses that run treasury and payments, where humans only set constraints*
 **What the track is about:** operations that run themselves inside rules a human wrote once.
@@ -100,35 +120,35 @@ NEAR's hackathon tracks name real capabilities. Here is what each one means and 
 **The problem it solves for us:** an autonomous agent with a wallet is only safe if it *cannot* exceed its brief, even if it is wrong or compromised.
 **How it works in our scenario:** there are three independent layers. **Layer 0** is the NEAR protocol itself: the key the worker uses to drive the mandate contract is a function-call access key limited to that contract and its five agent methods, with no deposit (`scripts/testnet/scoped-key.ts`); the protocol refuses `create_mandate`, `set_agent`, any other contract, any transfer and any deposit before contract code runs (`data/testnet-scoped-key.json`, shown on `/custody`). **Layer A** is an OutLayer agent-wallet policy. The vault *is* an OutLayer wallet, and **the worker writes a policy for each mandate from the DAO-approved terms before that mandate may trade** (only the contracts it needs and the DAO; native NEAR capped at the mandate budget). OutLayer then returns a real HTTP 403 `policy_denied` for a call to a contract outside the mandate, or native NEAR to any account but the DAO or above the budget. **Layer B** is our Mandate contract plus the executor guards: over-budget chunks, wrong tokens, trading after expiry, payouts to unlisted addresses, and creating a mandate without a DAO vote are all rejected. Six red-team attacks are runnable from the dashboard and each reports which layer stopped it.
 **Proof:** `data/demo-run/custody-run.json` (`layerA.policies`, `layerA.probes`, `redteam`), the `/custody` and `/redteam` pages, `worker/adapters/mandate-policy.ts`, `src/near/outlayer-policy.ts`, `contracts/mandate/src/lib.rs` (36 tests), [docs/CUSTODY.md](docs/CUSTODY.md).
-**Honest limit (probed, not assumed):** OutLayer's policy checks the contract a call goes to and native NEAR, but **not** who receives a token payout and **not** token amounts (`data/testnet-outlayer-findings.json`). Those are enforced by Layer B. So against a stolen worker credential, Layer A alone would not stop a token drain on testnet. The confidential endpoints were not exercised.
+**Scope (probed, not assumed):** OutLayer's policy checks the contract a call goes to and native NEAR, but **not** who receives a token payout and **not** token amounts (`data/testnet-outlayer-findings.json`). Those are enforced by Layer B. So against a stolen worker credential, Layer A alone would not stop a token drain on testnet. The confidential endpoints were not exercised.
 
 ### Privacy & Private AI - *intelligence without exposure*
 **What the track is about:** AI and finance that protect sensitive data, with proof rather than promises.
 **The problem it solves for us:** the intent (budget, floor, recipients) is commercially sensitive, and a normal LLM API would read it with nothing to verify.
 **How it works in our scenario:** the mandate is drafted and the settlement is summarised by a **confidential-TEE model on NEAR AI Cloud** (the recorded runs used GLM 5.3 Flash; the worker's `/api/parse` defaults to Qwen3.8-27B). Every answer carries a hardware-backed signature; our verifier recovers the signer, checks it against the attestation report fetched with a fresh nonce, and re-hashes the exact request and response bytes. The dashboard can run the live attestation check in your browser.
 **Proof:** `scripts/g4-check.ts`, `src/near/ai.ts`, `src/verify/`, the `/verify` page, `data/demo-run/proof-bundle.json` (13/13).
-**Honest limit:** we verify the signer is attested, not the Intel quote itself. Confidential *execution* (hidden trades) is designed against OutLayer and Confidential Intents but is mainnet-only and **not proven**.
+**Scope:** we verify the signer is attested, not the Intel quote itself. Confidential *execution* (hidden trades) is designed against OutLayer and Confidential Intents but is mainnet-only and **not proven**.
 
 ### Real-World Money - *payroll, invoicing and rails a normal organization could use tomorrow*
 **What the track is about:** boring money, moved reliably, with records an accountant accepts.
 **The problem it solves for us:** the sale is pointless unless contributors actually get paid and the books balance.
 **How it works in our scenario:** proceeds are split into real token transfers to **named accounts**, a service fee is paid to the operator, and every leftover goes back to the DAO. Balances are checked on-chain before and after, and the ledger exports an accountant-ready CSV with a transaction link on every row.
 **Proof:** `real.payouts` and `real.balanceDeltas` in `data/demo-run/run.json`, the `/ledger` page and CSV.
-**Honest limit:** testnet payouts are on NEAR. Cross-chain payouts through Intents are implemented and live-quoted but not executed with real money.
+**Scope:** testnet payouts are on NEAR. Cross-chain payouts through Intents are implemented and live-quoted but not executed with real money.
 
 ### Open Innovation - *something we have not seen*
 **What the track is about:** new ways for money, intelligence and ownership to work together.
 **The problem it solves for us:** a DAO may want to sell *without telling the market the terms first*, yet members still need proof it followed the vote.
 **How it works in our scenario:** **sealed mandates**. The chain holds only `sha256(salt | terms)` and the budget while the agent executes; terms are AES-256-GCM encrypted off-chain and released only to council members who sign a NEP-413 request. After settlement the terms are published on-chain and an independent verifier proves the commitment, the price floors, the budget and every recipient match, and rejects five kinds of tampering.
 **Proof:** mandate #13: [create](https://explorer.testnet.near.org/transactions/GGwhzq4HFeL8yYyvwCUgsagEanrHKoGieATHdArbvH9f), [first swap](https://explorer.testnet.near.org/transactions/JjGn1Wmxq3QaefAYp4bjme4xSjVn57DPcTQqReP43WF), [settlement + reveal](https://explorer.testnet.near.org/transactions/2PviWNGSjGg9tF96eFNvUmdtbk3Q2BFHefkYUx86WuVz); `data/demo-run/sealed-proof-bundle.json` (21/21), the `/sealed` page, [docs/SEALED.md](docs/SEALED.md).
-**Honest limit:** our worker is not in a TEE, so its operator can read sealed terms; testnet payouts reveal recipients when they execute.
+**Scope:** our worker is not in a TEE, so its operator can read sealed terms; testnet payouts reveal recipients when they execute.
 
 ### Unstoppable DeFi - *trading agents that settle across chains through NEAR Intents, no custodian, nobody to switch it off*
 **What the track is about:** markets that no single party controls.
 **The problem it solves for us:** treasury sales should not depend on a custodian or an operator's goodwill.
 **How it works in our scenario:** the DAO funds a vault by vote; the agent can only trade what the on-chain mandate allows, so no operator can redirect funds, and only a DAO vote can stop it. Execution on testnet is **real on-chain swaps on Ref Finance** with a price floor on every chunk. The cross-chain leg is implemented against NEAR Intents' 1Click API and **live dry-run quotes** are recorded for the sell leg and each payout chain.
 **Proof:** the swap transactions above; `src/near/routes.ts` and `src/near/intents.ts`; recorded live 1Click quotes in `data/demo-run/mainnet-readonly.json` (5 wNEAR to about 16.8 USDC on NEAR, then USDC legs to Solana, Base, Arbitrum and Ethereum, each with minimum out and time estimate); an `EXEC_MODE=live-dryrun` worker mode that takes a real quote, applies the price floor and records the exact OutLayer request it *would* send while blocking every money-moving call (`data/demo-run/mainnet-dryrun-decision.json`); the `/routes` dashboard page; [docs/DEFI.md](docs/DEFI.md).
-**Honest limit:** Intents has no testnet and we did not fund mainnet, so Intents execution, OutLayer-custody swaps and confidential swaps are **not proven with real money**. On the thin testnet pool, chunked selling does not beat one swap (about the 0.3% fee), and the report says so.
+**Scope:** Intents has no testnet and we did not fund mainnet, so Intents execution, OutLayer-custody swaps and confidential swaps are **not proven with real money**. On the thin testnet pool, chunked selling does not beat one swap (about the 0.3% fee), and the report says so.
 
 ---
 
@@ -171,7 +191,7 @@ NEAR's hackathon tracks name real capabilities. Here is what each one means and 
 | Named accounts and NEP-413 | identities and council-only sealed-term access | `worker/auth.ts` |
 | Ref Finance (testnet DEX) | real on-chain swaps | `worker/adapters/ref-testnet.ts` |
 
-## What is proven, and what is not
+## What is demonstrated
 
 | | Status |
 |---|---|
@@ -184,17 +204,15 @@ NEAR's hackathon tracks name real capabilities. Here is what each one means and 
 | near.social posts and reputation from named accounts | **Proven on testnet** |
 | OutLayer's policy restricting token payout recipients or token amounts | **Not provided by OutLayer in our probes** (Layer B enforces both); see CUSTODY.md |
 | Confidential (hidden) swaps, Intents cross-chain payouts | **Implemented and quoted against live APIs; not executed with real money** (mainnet-only; no funds were committed) |
+| Mainnet deployment kit: atomic deploy-and-initialise, read-only preflight, on-chain verification, contract test script | **Implemented and rehearsed on testnet** (`docs/MAINNET.md`); a mainnet run has not been executed ([status page](https://tannmayygupta.github.io/near/mainnet/)) |
 
 Testnet tokens are play money. The wallet key is in OutLayer's TEE, but testnet trades are ordinary public transactions, so there is no confidentiality on testnet. Full row-by-row status with evidence: [docs/CLAIMS.md](docs/CLAIMS.md).
 
-### Status, 14 Nov 2026
-* **Tests:** 396 unit tests (vitest), 36 Rust contract tests (31 unit + 5 property tests); `npm run verify` re-checks three recorded proof bundles (13 + 21 + 16 checks).
-* **End-to-end runs on public testnet:** 30/30 (key vault), 37/37 (OutLayer custody, 6 real swaps, 4 payouts/fee/returns), 37/37 (sealed), 13/13 (crash-restart).
-* **Evidence:** all 201 distinct transactions cited here, in the docs and in the recorded runs were looked up on public testnet and all 201 exist (`npm run check:evidence`, result in `data/evidence-check.json`). The deployed contract's code hash equals the committed wasm (`npm run verify:contract`).
-* **Protocol-level scoping:** the worker drives the mandate contract with a function-call key (5 methods, no deposit); the NEAR protocol refuses everything else (6 live probes in `data/testnet-scoped-key.json`; the custody and crash-restart runs use this key).
+### Engineering notes
+* **Protocol-level scoping:** the worker drives the mandate contract with a function-call key (5 methods, no deposit); the NEAR protocol refuses everything else (8 refusals, recorded in the custody run and in `data/testnet-scoped-key.json`).
 * **Recompute in your browser:** the [/recompute](https://tannmayygupta.github.io/near/recompute/) page re-reads the mandate from the contract and every chunk and completion transaction from public RPC, then re-derives the sums, the price floor and the report hash. No server of ours is involved (`app/lib/recompute.ts`, `tests/recompute.test.ts`).
-* **A flaw we found and fixed on 14 Nov:** the price sanity band was skipped when its reference quote failed, so two recorded runs had traded through an absurdly priced pool while every check passed. The guard now fails closed, every end-to-end run checks that its swaps happened at a market-like price, and all four runs were re-recorded on contract v2 ([incident note](docs/incidents/2026-11-14-price-band-skipped.md)).
-* **Not done:** no mainnet transactions; the hosted demo is static (no worker behind it); Trezu is not integrated; a Telegram alert has been exercised only against Telegram's real API error path, not into a real chat (`scripts/dev/alert-test.ts` does it with your own bot token).
+* **A flaw found by our own end-to-end checks, fixed and re-recorded:** the price sanity band was skipped when its reference quote failed. The guard now fails closed, every run asserts its swaps happened at a market-like price, and all four runs were re-recorded on contract v2 ([incident note](docs/incidents/2026-11-14-price-band-skipped.md)).
+* **Scope notes:** the hosted dashboard is static (run the worker locally for live parsing and live attacks); Trezu is not integrated; the Telegram alert path has been exercised against Telegram's API error path (`scripts/dev/alert-test.ts` sends to your own bot).
 * **Feedback for OutLayer, with reproductions:** [docs/OUTLAYER-FEEDBACK.md](docs/OUTLAYER-FEEDBACK.md).
 
 ## Verify it yourself
@@ -239,7 +257,7 @@ Deployed testnet ids: DAO `quietdao-83872.sputnikv2.testnet`, mandate contract `
 
 ## Roadmap
 
-1. A funded mainnet run of the Intents path and confidential swaps, turning today's "quoted" into "proven" (OutLayer custody is already proven on testnet).
+1. Run the prepared mainnet slice (an atomic deploy-and-initialise script, a read-only preflight, on-chain verification and a contract test script, all rehearsed on testnet) and the Intents settlement path, so today's testnet-validated flow gains a mainnet record (OutLayer custody is already validated on testnet).
 2. The DAO itself as the wallet-policy owner (today a single owner account writes the per-mandate policy), and one wallet per mandate so concurrent mandates never share a policy.
 3. Token-recipient and token-amount checks at the wallet layer once OutLayer supports them (see docs/OUTLAYER-FEEDBACK.md).
 4. The worker inside a TEE so even the operator cannot read sealed terms.

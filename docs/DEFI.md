@@ -77,7 +77,7 @@ Every transaction is written with a `https://nearblocks.io/txns/<hash>` link, to
 - It is **one swap of a small amount** with the owner's own money, to an account the owner controls. It is not a cross-chain payout (the destination is USDC on NEAR), not a confidential swap, not OutLayer custody.
 - Price quality is not claimed: a quote is checked against its own USD values (loss above 5% is refused) and the on-chain result against `minAmountOut`, nothing more.
 
-**Safety rules in the code.** The gates and the order of operations are unit-tested with a fake chain and a fake 1Click (`tests/intents-live.test.ts`); the script's own glue (RPC network check, key file handling, secret scrubbing, the real `near-api-js` calls) is not covered by unit tests.
+**Safety rules in the code.** The gates and the order of operations are unit-tested with a stubbed chain and a stubbed 1Click (`tests/intents-live.test.ts`); the script's own glue (RPC network check, key file handling, secret scrubbing, the real `near-api-js` calls) is not covered by unit tests.
 - Refuses unless `ALLOW_MAINNET=1` and `CONFIRM_INTENTS_SPEND` equals the configured amount; hard cap 1 NEAR; refuses an RPC that does not report `mainnet`.
 - The AI never touches it: no model, no key outside the process environment and the git-ignored key file; the funder key is read from the environment only and scrubbed from anything printed.
 - Every step checks chain state first and skips itself when done: a re-run never funds, wraps or registers twice (a bug of exactly this kind was found by the tests: a re-run after the wrap would have funded the amount a second time).
