@@ -9,7 +9,7 @@ import { ENV } from '@/lib/data';
 const GROUPS: Array<{ label: string; links: ReadonlyArray<readonly [string, string]> }> = [
   { label: 'Govern', links: [['/', 'Home'], ['/wizard', 'New mandate'], ['/votes', 'Votes'], ['/reputation', 'Reputation']] },
   { label: 'Run', links: [['/live', 'Live run'], ['/me', 'My payouts'], ['/routes', 'Routes'], ['/copycat', 'Copycat view'], ['/redteam', 'Red team']] },
-  { label: 'Prove', links: [['/custody', 'Custody'], ['/sealed', 'Sealed'], ['/report', 'Report'], ['/verify', 'Verify'], ['/recompute', 'Recompute'], ['/ledger', 'Ledger']] },
+  { label: 'Prove', links: [['/custody', 'Custody'], ['/sealed', 'Sealed'], ['/report', 'Report'], ['/verify', 'Verify'], ['/recompute', 'Recompute'], ['/ledger', 'Ledger'], ['/mainnet', 'Mainnet']] },
 ];
 
 /** The mark: a vault dial. Ink tile, mint ring, one quiet dot. */
