@@ -15,7 +15,7 @@ import { accountFor, providerFor, view, b64, TGAS, NEAR } from '../../src/near/c
 import { Acct, TestnetConfig, PUBLIC_PATH, TAG, hasConfig, loadConfig, saveConfig, explorerAccount, explorerTx, helperCreate, sleep } from '../testnet/lib.js';
 import { P, IS_MAINNET, LIMITS, requireMainnetConsent } from './net.js';
 import { setupContract, SetupAbort, type CodeState } from '../../src/near/deploy-atomic.js';
-import { SETUP_PLAN, codeHashOf } from '../../src/near/setup-plan.js';
+import { SETUP_PLAN, codeHashOf, remainingSetupNeed } from '../../src/near/setup-plan.js';
 import { secretPath, writeSecretFile } from '../../src/near/secret-dir.js';
 
 requireMainnetConsent('create accounts, a DAO and a contract');
@@ -27,7 +27,7 @@ const die = (m: string): never => { console.error('STOP:', m); process.exit(1); 
 
 // ---------------- the owner (the only account whose key you hand to this script, via the environment, never a file we write)
 let ownerId = process.env.QT_FUNDER_ACCOUNT ?? '', ownerKey = process.env.QT_FUNDER_KEY ?? '';
-const OWNER_FILE = secretPath(`-owner.json`);
+const OWNER_FILE = secretPath(`${TAG}-owner.json`);
 if (!ownerId || !ownerKey) {
   if (IS_MAINNET) die('set QT_FUNDER_ACCOUNT (your named mainnet account) and QT_FUNDER_KEY (its ed25519 secret key) in .env');
   if (existsSync(OWNER_FILE)) ({ accountId: ownerId, secretKey: ownerKey } = JSON.parse(readFileSync(OWNER_FILE, 'utf8')));
@@ -67,24 +67,25 @@ async function ensureSub(role: string, sub: string, nearAmt: string) {
   await owner.createAccount({ newAccountId: id, publicKey: KeyPair.fromString(cfg.accounts[role].secretKey as any).getPublicKey(), nearToTransfer: NEAR(nearAmt) });
   console.log('created', id.padEnd(40), nearAmt, 'NEAR'); await sleep(2500);
 }
+{ // Balance gate for EVERY run (fresh or resumed), before any transaction: what is still missing must be affordable, or nothing is sent.
+  const present: string[] = []; for (const s of SETUP_PLAN.subAccounts) if (await exists(`${s.sub}.${ownerId}`)) present.push(s.sub);
+  const missing = remainingSetupNeed({ subs: present, dao: await exists(cfg.dao) });
+  console.log(`still to fund from the owner: ${nearOf(missing)} NEAR (incl. a 0.3 gas margin); owner holds ${nearOf(have)}`);
+  if (have < missing) die(`the owner holds ${nearOf(have)} NEAR but the steps that remain need ${nearOf(missing)}. NOTHING was sent. Add NEAR to ${ownerId} and run setup again (it resumes).`);
+}
 for (const s of SETUP_PLAN.subAccounts) await ensureSub(s.role, s.sub, s.near); // amounts and reasons: src/near/setup-plan.ts (the same table the preflight estimates from)
 
 // ---------------- the DAO (real Sputnik v2 factory)
 if (!(await exists(cfg.dao))) {
   const council = ['council1', 'council2', 'council3'].map((n) => cfg.accounts[n].accountId);
   const args = { config: { name: cfg.dao.split('.')[0], purpose: `Quiet Treasury (${P.name} slice)`, metadata: '' }, policy: council };
-  let deposit: number = SETUP_PLAN.daoDepositNear;
-  for (let attempt = 0; attempt < 3; attempt++) {
-    try {
-      await owner.callFunction({ contractId: P.factory, methodName: 'create', args: { name: args.config.name, args: b64(args) }, gas: TGAS(150), deposit: NEAR(deposit) });
-      break;
-    } catch (e: any) {
-      const m = String(e.message ?? e); const needM = m.match(/(\d+(?:\.\d+)?)\s*NEAR/i);
-      console.log('create DAO failed:', m.slice(0, 200));
-      if (needM && Number(needM[1]) > deposit && Number(needM[1]) < 9) deposit = Math.ceil(Number(needM[1]) + 0.1); else throw e;
-    }
-  }
-  await sleep(3000);
+  // ONE attempt with the fixed deposit from the plan. The factory has no minimum of its own (the protocol decides) and refunds the whole deposit if creation fails
+  // (`on_create`), so there is nothing to escalate: the owner's maximum outflow here is exactly SETUP_PLAN.daoDepositNear. If the result is unclear we READ the chain; we never resend.
+  let sendError: string | null = null;
+  try { await owner.callFunction({ contractId: P.factory, methodName: 'create', args: { name: args.config.name, args: b64(args) }, gas: TGAS(150), deposit: NEAR(SETUP_PLAN.daoDepositNear) }); }
+  catch (e: any) { sendError = String(e.message ?? e).slice(0, 200); console.log('create DAO reported an error (outcome unknown, will read the chain, not resend):', sendError); }
+  for (let i = 0; i < 10 && !(await exists(cfg.dao)); i++) await sleep(3000);
+  if (!(await exists(cfg.dao))) die(`the DAO ${cfg.dao} does not exist after one create attempt${sendError ? ` (${sendError})` : ''}. The factory refunds a failed creation; check the owner's balance and the explorer before running setup again (it resumes and will try once more).`);
 }
 if (!(await exists(cfg.dao))) die('the DAO account does not exist after creation');
 const policy: any = await view(rpc, cfg.dao, 'get_policy');
@@ -131,7 +132,7 @@ await (async () => {
 })();
 
 // ---------------- Layer 0: the agent's function-call key (only these 5 methods on the mandate contract, no deposit)
-const SCOPED_FILE = secretPath(`-scoped-key.json`);
+const SCOPED_FILE = secretPath(`${TAG}-scoped-key.json`);
 const METHODS = ['mark_funded', 'record_chunk', 'begin_settlement', 'complete', 'expire'];
 let scoped = existsSync(SCOPED_FILE) ? JSON.parse(readFileSync(SCOPED_FILE, 'utf8')) : null;
 if (!scoped || scoped.receiver !== cfg.mandate) {

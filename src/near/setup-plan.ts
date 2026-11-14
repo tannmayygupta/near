@@ -35,7 +35,18 @@ export function estimateSetup(wasmBytes: number) {
   return { subAccounts: subs, daoDeposit: dao, outflow, gas, required, contractStorage: storage, contractHeadroom: mandate - storage, contractFundedEnough: mandate > storage };
 }
 
-export const codeHashOf = (wasm: Uint8Array) => baseEncode(createHash('sha256').update(wasm).digest());
+/**
+ * NEAR the owner must still be able to send for the steps that have NOT happened yet (resume-aware), plus a gas margin.
+ * setup.ts compares the owner's balance with this BEFORE sending any transaction, so a shortfall stops the run with nothing sent
+ * instead of leaving half the accounts created.
+ */
+export function remainingSetupNeed(existing: { subs: string[]; dao: boolean }, gasMarginNear = 0.3): bigint {
+  const have = new Set(existing.subs);
+  const subs = SETUP_PLAN.subAccounts.filter((s) => !have.has(s.sub)).reduce((a, s) => a + toYocto(s.near), 0n);
+  return subs + (existing.dao ? 0n : toYocto(SETUP_PLAN.daoDepositNear)) + toYocto(gasMarginNear);
+}
+
+export const codeHashOf =(wasm: Uint8Array) => baseEncode(createHash('sha256').update(wasm).digest());
 export const sha256Hex = (b: Uint8Array) => createHash('sha256').update(b).digest('hex');
 
 /** True when .env text sets ALLOW_MAINNET. Consent for real money must come from the shell of the command, never from a file. */

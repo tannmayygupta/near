@@ -1,7 +1,7 @@
 import { KeyPair } from 'near-api-js';
 import { describe, expect, it } from 'vitest';
 import { runPreflight, secretLike, type PreflightDeps } from '../src/near/preflight-checks';
-import { codeHashOf, estimateSetup, fromYocto, toYocto, SETUP_PLAN } from '../src/near/setup-plan';
+import { codeHashOf, estimateSetup, fromYocto, remainingSetupNeed, toYocto, SETUP_PLAN } from '../src/near/setup-plan';
 
 const WASM = new Uint8Array(369245).fill(7);
 const kp = KeyPair.fromRandom('ed25519'); const SECRET = kp.toString(); const PUB = kp.getPublicKey().toString();
@@ -85,4 +85,13 @@ describe('funding estimate (recomputed from the setup plan itself)', () => {
     expect(secretLike(['.env', 'app/.env.local', 'data/secret/a.json', 'x/near-credentials/y.json', 'k.pem'])).toHaveLength(5);
     expect(secretLike(['.env.example', 'app/.env.testnet.example', 'src/index.ts'])).toHaveLength(0);
   });
+});
+
+describe('balance gate before any transaction (no partial setup)', () => {
+  const ALL = SETUP_PLAN.subAccounts.map((s) => s.sub);
+  it('a fresh run needs every sub-account + the DAO deposit + a 0.3 gas margin = 15.45 NEAR', () => { expect(fromYocto(remainingSetupNeed({ subs: [], dao: false }))).toBe('15.4500'); });
+  it('a resumed run only needs what is still missing (here: only the DAO)', () => { expect(fromYocto(remainingSetupNeed({ subs: ALL, dao: false }))).toBe('6.3000'); });
+  it('a fully set-up owner needs just the gas margin', () => { expect(fromYocto(remainingSetupNeed({ subs: ALL, dao: true }))).toBe('0.3000'); });
+  it('partial progress is subtracted account by account (council1 and the contract account already exist)', () => { expect(fromYocto(remainingSetupNeed({ subs: ['qt-c1', 'qt-mandate'], dao: false }))).toBe('9.1500'); });
+  it('the owner outflow can never exceed the planned deposit: the plan has no escalation knob', () => { expect(Object.keys(SETUP_PLAN).sort()).toEqual(['daoDepositNear', 'gasEstimateNear', 'ownerReserveNear', 'subAccounts', 'vaultNear']); });
 });
