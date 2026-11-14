@@ -62,7 +62,7 @@ describe('rate limiter', () => {
     for (let i = 0; i < 20; i++) rl.check('9.9.9.9', '/api/parse');
     expect(rl.check('9.9.9.9', '/api/mandates').ok).toBe(true);
     expect(rl.check('9.9.9.9', '/api/mandates/3/terms').limit).toBe(20);
-    expect(rl.check('9.9.9.9', '/api/redteam/run').limit).toBe(12);
+    expect(rl.check('9.9.9.9', '/api/redteam/run').limit).toBe(6); // strict: tighter than parse/auth (20)
   });
   it('buckets IPv6 by /64 and unwraps IPv4-mapped addresses', () => {
     expect(clientBucket('2001:db8:1:2:aaaa:bbbb:cccc:dddd')).toBe(clientBucket('2001:db8:1:2:1111:2222:3333:4444'));

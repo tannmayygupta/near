@@ -51,6 +51,9 @@ jobs:
           NEXT_PUBLIC_STATIC_DEMO: '1'
           NEXT_PUBLIC_BASE_PATH: /${{ github.event.repository.name }}
           NEXT_PUBLIC_NEAR_NETWORK: testnet
+          # Optional: the https URL of a hosted worker (Settings > Secrets and variables > Actions > Variables > WORKER_API; a public URL, not a secret).
+          # Empty or unset = no worker: the site stays the read-only recorded demo. The page pings <url>/health at run time and falls back to the recorded mode if it is unreachable.
+          NEXT_PUBLIC_WORKER_API: ${{ vars.WORKER_API }}
 
       - name: Disable Jekyll (keeps the _next folder)
         run: touch app/out/.nojekyll

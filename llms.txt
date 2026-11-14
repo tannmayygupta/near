@@ -5,7 +5,7 @@
 This file is a map, not evidence. Verify with the commands below; `docs/CLAIMS.md` lists every claim with its status (VERIFIED-TESTNET, LOCAL, SIMULATED, UNVERIFIED, NOT IMPLEMENTED).
 
 ## Run
-- `npm ci && npm test` : 176 unit tests (vitest), no network or keys needed
+- `npm ci && npm test` : 302 unit tests (vitest), no network or keys needed
 - `npm run demo` : the whole story offline (labelled simulation, ~2 s)
 - `npm run verify` : independent verifier over three recorded proof bundles (13 + 21 + 16 checks, offline)
 - `npm run secret-scan` : repository secret scan
@@ -17,6 +17,7 @@ This file is a map, not evidence. Verify with the commands below; `docs/CLAIMS.m
 - `docs/TRACKS.md` : per-track proof map with a command per claim; `docs/AI_DISCLOSURE.md`
 - `README.md` : per-track explanation, architecture, NEAR technology map
 - `docs/CLAIMS.md` : claims vs evidence
+- `SECURITY.md` : what each safety layer stops and does not stop, what a stolen key or a hostile operator can and cannot do, known limits, how to report a problem
 - `docs/CUSTODY.md` : OutLayer custody wallet, per-mandate policy, what the policy does and does not enforce
 - `docs/OUTLAYER-FEEDBACK.md` : reproducible findings about OutLayer's API (for the sponsor)
 - `docs/SEALED.md`, `docs/DEFI.md`, `docs/ARCHITECTURE.md`, `docs/RUNBOOK.md`, `docs/CONTRACT.md`, `docs/adr/` (decisions and what they rejected), `docs/incidents/` (what really failed), `CONTEXT.md` (vocabulary), `AGENTS.md`

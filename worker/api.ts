@@ -7,7 +7,9 @@ import { verifyReportHash } from '../src/engine/settlement';
 import type { OnChainMandate } from '../src/near/mandate';
 import { State } from './state';
 import { authenticate } from './auth';
-import { runAttack, RedteamDeps } from './redteam';
+import { envRedactor } from './redact';
+import { RedteamDeps, RedteamGate } from './redteam';
+import type { WindowBudget } from './ratelimit';
 import type { ChainPort, OutLayerPort } from './ports';
 
 export interface ApiDeps {
@@ -15,6 +17,12 @@ export interface ApiDeps {
   cfg: { dao: string; rpc: string; corsOrigin: string; authRecipient: string };
   /** per-process rate limiter (default: tiered, see worker/ratelimit.ts) */
   limiter?: RateLimiter;
+  /** what `/api/redteam/*` runs (default: a RedteamGate over `redteam`: cached, globally budgeted, secret-scrubbed) */
+  redteamGate?: RedteamGate;
+  /** GLOBAL budget for `/api/parse` (it spends NEAR AI credits); absent = unlimited (tests, local runs) */
+  parseBudget?: WindowBudget;
+  /** GET /attestation: the live NEAR AI attestation check (worker/attestation.ts). Must never throw; absent = reported as not configured */
+  attestation?: () => Promise<unknown>;
   parse?: (intent: string) => Promise<unknown>;
   isCouncil: (account: string) => Promise<boolean>;
   nowS: () => number;
@@ -33,6 +41,7 @@ export async function termsFor(state: State, m: OnChainMandate): Promise<Mandate
 
 export function createApi(d: ApiDeps) {
   const limiter = d.limiter ?? new RateLimiter();
+  const gate = d.redteamGate ?? new RedteamGate(d.redteam);
   const json = (res: ServerResponse, code: number, body: unknown) => { res.writeHead(code, { 'content-type': 'application/json', ...cors() }); res.end(JSON.stringify(body)); };
   const cors = () => ({ 'access-control-allow-origin': d.cfg.corsOrigin, 'access-control-allow-headers': 'content-type, x-near-auth', 'access-control-allow-methods': 'GET, POST, OPTIONS' });
   const body = async (req: IncomingMessage) => { let s = ''; for await (const c of req) { s += c; if (s.length > 64_000) throw new Error('body too large'); } return s ? JSON.parse(s) : {}; };
@@ -118,6 +127,10 @@ export function createApi(d: ApiDeps) {
       if (p === '/health') return json(res, 200, { ok: true, ...d.health() });
       let m: RegExpMatchArray | null;
       if (method === 'GET') {
+        if (p === '/attestation') { // always 200: the body says ok:true/false and why (NEAR AI unreachable, key missing, ...)
+          try { return json(res, 200, d.attestation ? await d.attestation() : { ok: false, checkedAt: null, ageSeconds: null, nonce: null, model: null, signingAddress: null, checks: [], note: 'attestation check not configured on this worker' }); }
+          catch (e) { return json(res, 200, { ok: false, checkedAt: null, ageSeconds: null, nonce: null, model: null, signingAddress: null, checks: [{ name: 'attestation check ran', ok: false, detail: String((e as Error)?.message ?? e).slice(0, 200) }] }); }
+        }
         if (p === '/api/mandates') return json(res, 200, await d.chain.listMandates());
         if ((m = p.match(/^\/api\/mandates\/(\d+)\/chunks$/))) return json(res, 200, await chunks(Number(m[1])));
         if ((m = p.match(/^\/api\/mandates\/(\d+)\/events$/))) return json(res, 200, d.state.events(Number(m[1])).map((e) => ({ ...e, detail: JSON.parse(e.detail) })));
@@ -136,7 +149,9 @@ export function createApi(d: ApiDeps) {
       }
       if (method === 'POST') {
         const b = await body(req);
-        if (p === '/api/parse') { if (!d.parse) return json(res, 503, { error: 'parser not configured (NEAR_AI_API_KEY missing)' }); 
+        if (p === '/api/parse') { if (!d.parse) return json(res, 503, { error: 'parser not configured (NEAR_AI_API_KEY missing)' });
+          const budget = d.parseBudget?.take();
+          if (budget && !budget.ok) { res.writeHead(429, { 'content-type': 'application/json', 'retry-after': String(budget.retryAfterS), ...cors() }); return res.end(JSON.stringify({ error: 'the private AI parsing budget of this worker is used up for now (shared by all visitors; it spends the operator\'s NEAR AI credits)', rule: 'parse-global', retryAfterS: budget.retryAfterS })); }
           try { return json(res, 200, await d.parse(String(b.intent ?? ''))); }
           catch (e) { // a rejected/unparseable intent is the caller's problem (422), not a server crash
             const err = e as { name?: string; code?: string; message?: string; attempts?: number };
@@ -144,7 +159,7 @@ export function createApi(d: ApiDeps) {
             return json(res, 502, { error: `private AI request failed: ${err.message}` });
           }
         }
-        if ((m = p.match(/^\/api\/redteam\/([a-z_]+)$/))) return json(res, 200, await runAttack(m[1], b.mandateId, d.redteam));
+        if ((m = p.match(/^\/api\/redteam\/([a-z_]+)$/))) return json(res, 200, await gate.run(m[1], b.mandateId));
         if (p === '/api/sealed-terms') {
           try { await authenticate(req.headers['x-near-auth'] as string | undefined, 'sealed-terms', { rpc: d.cfg.rpc, recipient: d.cfg.authRecipient, isCouncil: d.isCouncil }); }
           catch (e) { return json(res, 401, { error: `council authentication required: ${(e as Error).message}` }); }
@@ -155,7 +170,7 @@ export function createApi(d: ApiDeps) {
         }
       }
       return json(res, 404, { error: 'not found' });
-    } catch (e) { return json(res, 500, { error: (e as Error).message }); }
+    } catch (e) { return json(res, 500, { error: envRedactor()(String((e as Error)?.message ?? e)).slice(0, 400) }); }
   };
   return { handler, listen(port: number): Promise<Server> { const s = createServer(handler); return new Promise((r) => s.listen(port, () => r(s))); } };
 }

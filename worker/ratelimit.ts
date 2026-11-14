@@ -4,7 +4,7 @@
 export interface RateRule { match: RegExp; max: number; name: string }
 export const DEFAULT_RULES: RateRule[] = [
   { name: 'ai-and-auth', match: /^\/api\/(parse|auth)|\/terms$|^\/api\/sealed/, max: 20 },
-  { name: 'red-team', match: /^\/api\/redteam/, max: 12 },
+  { name: 'red-team', match: /^\/api\/redteam/, max: 6 }, // strict: the six attacks of one dashboard round fit in a minute; the global budget in worker/redteam.ts caps what reaches the chain
   { name: 'default', match: /.*/, max: 600 },
 ];
 
@@ -27,6 +27,20 @@ export function clientIp(remote: string | undefined, forwardedFor: string | unde
   const peer = remote ?? 'unknown';
   if (isLoopback(peer) && forwardedFor) { const first = forwardedFor.split(',')[0]?.trim(); if (first) return first; }
   return peer;
+}
+
+/** A GLOBAL (all clients together) sliding-window budget for actions that cost the operator something (gas, AI credits). `take` consumes one unit; `refund` gives back the latest one. */
+export class WindowBudget {
+  private stamps: number[] = [];
+  constructor(private max: number, private windowMs = 3_600_000, private nowFn: () => number = Date.now) {}
+  private prune(now: number) { while (this.stamps.length && now - this.stamps[0]! >= this.windowMs) this.stamps.shift(); }
+  take(): { ok: boolean; retryAfterS: number } {
+    const now = this.nowFn(); this.prune(now);
+    if (this.stamps.length >= this.max) return { ok: false, retryAfterS: Math.max(1, Math.ceil((this.stamps[0]! + this.windowMs - now) / 1000)) };
+    this.stamps.push(now); return { ok: true, retryAfterS: 0 };
+  }
+  refund() { this.stamps.pop(); }
+  remaining() { this.prune(this.nowFn()); return Math.max(0, this.max - this.stamps.length); }
 }
 
 export class RateLimiter {

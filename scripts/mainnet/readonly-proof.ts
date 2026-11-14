@@ -6,8 +6,9 @@ import { planRoutes, type RouteInput, type Leg } from '../../src/near/routes.js'
 const sample: RouteInput = {
   sellAmount: (5n * 10n ** 24n).toString(), // 5 wNEAR
   // 64-hex IMPLICIT account (the account type an OutLayer agent wallet has; this is the example address from OutLayer's docs). Used only as
-  // recipient/refund in DRY quotes; never funded. Probe finding 2026-11-12: for a wNEAR-origin quote 1Click answered HTTP 400 "Internal server error"
-  // when refundTo/recipient was a NAMED account (e.g. wrap.near) and 201 with an implicit 64-hex account, so the design uses the implicit address.
+  // recipient/refund in DRY quotes; never funded. Probe finding 2026-11-12, corrected 2026-11-14 (docs/DEFI.md): for a wNEAR-origin quote 1Click answered
+  // HTTP 400 "Internal server error" when refundTo/recipient was wrap.near and 201 with an implicit 64-hex account; ordinary existing named accounts
+  // (alice.near) also quote, so the implicit address is used because it is the OutLayer wallet's account type, not because named accounts always fail.
   treasuryAccount: '36842e2f73d0b7b2f2af6e0d94a7a997398c2c09d9cf09ca3fa23b5426fccf88',
   payouts: [
     { label: 'alice', chain: 'solana', address: '9xQeWvG816bUx9EPjHmaT23yvVM2ZWbrrpZb9PusVFin', percent: 25 },

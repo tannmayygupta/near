@@ -5,10 +5,13 @@ import { RPC, accountFor, callTx, TGAS } from '../../src/near/chain.js';
 import { addProposal, getProposal } from '../../src/near/sputnik.js';
 
 export const HELPER = 'https://helper.nearprotocol.com/account';
-export const CONFIG_PATH = 'data/secret/testnet-config.json';
-export const PUBLIC_PATH = 'data/testnet-public.json';
-export const explorerAccount = (id: string) => `https://explorer.testnet.near.org/accounts/${id}`;
-export const explorerTx = (h: string) => `https://explorer.testnet.near.org/transactions/${h}`;
+// QT_NET=mainnet selects the mainnet explorer; QT_TAG names the config set (default: the network name). A testnet REHEARSAL of the mainnet scripts uses QT_TAG=rehearsal so it never touches the real testnet config.
+export const NET: 'testnet' | 'mainnet' = process.env.QT_NET === 'mainnet' ? 'mainnet' : 'testnet';
+export const TAG = process.env.QT_TAG ?? NET;
+export const CONFIG_PATH = `data/secret/${TAG}-config.json`;
+export const PUBLIC_PATH = `data/${TAG}-public.json`;
+export const explorerAccount = (id: string) => (NET === 'mainnet' ? `https://nearblocks.io/address/${id}` : `https://explorer.testnet.near.org/accounts/${id}`);
+export const explorerTx = (h: string) => (NET === 'mainnet' ? `https://nearblocks.io/txns/${h}` : `https://explorer.testnet.near.org/transactions/${h}`);
 
 export interface Acct { accountId: string; publicKey: string; secretKey: string }
 export interface TestnetConfig {

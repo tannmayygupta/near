@@ -1,0 +1,52 @@
+# Fly.io alternative for the Quiet Treasury worker (TESTNET ONLY). No secret is in this file: set them with `fly secrets set` (docs/DEPLOY.md, "Hosted worker (testnet)").
+# `app` must be globally unique: change it, or pass `--app <name>` to every command. Fly has no unconditional free tier any more; check current pricing before you deploy.
+#
+#   fly launch --no-deploy --copy-config --name <your-app> --region <region>
+#   fly volumes create qt_data --region <region> --size 1        # a volume belongs to ONE machine; this worker is a single instance by design
+#   fly secrets set AGENT_SECRET_KEY=... CUSTODY_OWNER_KEY=... CUSTODY_SEED=... SEALED_TERMS_KEY=... NEAR_AI_API_KEY=...
+#   fly deploy
+app = "quiet-treasury-worker"
+primary_region = "ord"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  NEAR_NETWORK = "testnet"
+  EXEC_MODE = "testnet-outlayer"
+  REQUIRE_SCOPED_KEY = "1"
+  WORKER_CORS_ORIGIN = "https://tannmayygupta.github.io"
+  DAO_ACCOUNT = "quietdao-83872.sputnikv2.testnet"
+  MANDATE_CONTRACT = "qtmandate2-83872.testnet"
+  AGENT_ACCOUNT_ID = "qtagent-68669.testnet"
+  NEAR_TESTNET_RPC = "https://test.rpc.fastnear.com"
+  MANDATE_FROM_ID = "14"            # 1 + the highest mandate id on the contract (0..13 existed on 2026-11-14)
+  SIM_QUOTE_RECIPIENT = "e016bb364245bb86db1a31b85bcc952056a54ff906fe79de9659589f49480887" # public address (data/testnet-layer-a.json wallet.address)
+  PORT = "8787"
+  STATE_DB = "/data/worker.sqlite"
+  REF_LEDGER = "/data/ref-ledger.json"
+  CUSTODY_POLICIES = "/data/custody-policies.json"
+
+[http_service]
+  internal_port = 8787
+  force_https = true
+  # The dashboard pings /health every 15 s while a tab is open, which wakes a stopped machine (a few seconds on Fly).
+  # Set min_machines_running = 1 and auto_stop_machines = "off" to keep the agent loop running 24/7 (costs more).
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+
+  [[http_service.checks]]
+    grace_period = "30s"
+    interval = "30s"
+    method = "GET"
+    timeout = "5s"
+    path = "/health"
+
+[mounts]
+  source = "qt_data"
+  destination = "/data"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "1gb"

@@ -26,7 +26,7 @@ export function StartHere() {
         <Stat k="Crash-restart checks passed" v={passed(r)} s="recorded" />
       </div>
       <p style={{ margin: '12px 0 0' }} className="row">
-        <Link href="/custody">See the custody run</Link> · <Link href="/redteam">Try an attack</Link> · <Link href="/verify">Verify a run</Link> · <Link href="/recompute">Recompute one in your browser</Link> · <Link href="/sealed">Sealed mandates</Link>
+        <Link href="/custody">See the custody run</Link> · <Link href="/redteam">Try an attack</Link> · <Link href="/verify">Verify a run</Link> · <Link href="/recompute">Recompute one in your browser</Link> · <Link href="/me">Look up your payouts</Link> · <Link href="/sealed">Sealed mandates</Link>
         <Src s="recorded" />
       </p>
     </section>

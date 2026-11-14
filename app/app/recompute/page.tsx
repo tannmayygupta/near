@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { asset, RPC } from '@/lib/data';
-import { recomputeRun, rpcChain, type BundleFile, type Check, type RunFile } from '@/lib/recompute';
+import { recomputeRun, recomputeSummary, rpcChain, type BundleFile, type Check, type RunFile } from '@/lib/recompute';
 import { PageHead, Src } from '@/components/ui';
 
 const RUNS = [
@@ -13,16 +13,25 @@ const RUNS = [
 
 export default function Recompute() {
   const [key, setKey] = useState<(typeof RUNS)[number]['key']>('custody');
-  const [state, setState] = useState<{ busy: boolean; checks: Check[]; error: string | null; ranFor: string | null }>({ busy: false, checks: [], error: null, ranFor: null });
+  type Meta = { key: string; contract: string; mandateId: number | undefined; at: string };
+  const [state, setState] = useState<{ busy: boolean; checks: Check[]; error: string | null; ranFor: string | null; meta: Meta | null }>({ busy: false, checks: [], error: null, ranFor: null, meta: null });
+  const [copy, setCopy] = useState<{ status: 'idle' | 'copied' | 'failed'; text: string }>({ status: 'idle', text: '' });
   async function go(pick: (typeof RUNS)[number]['key'] = key) {
     const r = RUNS.find((x) => x.key === pick)!;
-    setState({ busy: true, checks: [], error: null, ranFor: null });
+    setState({ busy: true, checks: [], error: null, ranFor: null, meta: null }); setCopy({ status: 'idle', text: '' });
     try {
       const run = (await (await fetch(asset(r.run), { cache: 'no-store' })).json()) as RunFile;
       const bundle: BundleFile | null = r.bundle ? await fetch(asset(r.bundle), { cache: 'no-store' }).then((x) => (x.ok ? x.json() : null)).catch(() => null) : null;
       const checks = await recomputeRun(run, bundle, rpcChain(['https://archival-rpc.testnet.fastnear.com', 'https://archival-rpc.testnet.near.org', RPC.testnet]) /* archival first: ordinary RPC nodes forget transactions after ~2 days */);
-      setState({ busy: false, checks, error: null, ranFor: r.label });
-    } catch (e) { setState({ busy: false, checks: [], error: (e as Error).message, ranFor: null }); }
+      setState({ busy: false, checks, error: null, ranFor: r.label, meta: { key: r.key, contract: run.ids?.mandateContract ?? '', mandateId: run.mandate?.id ?? run.mandateId, at: new Date().toISOString() } });
+    } catch (e) { setState({ busy: false, checks: [], error: (e as Error).message, ranFor: null, meta: null }); }
+  }
+  /** Copies an honest plain-text summary (also when checks DISAGREE). If the browser refuses clipboard access, the text is shown to copy by hand. */
+  async function copyResult() {
+    if (!state.meta || !state.ranFor) return;
+    const url = `${window.location.origin}${window.location.pathname}?run=${state.meta.key}&auto=1`;
+    const text = recomputeSummary({ runLabel: state.ranFor, checks: state.checks, contract: state.meta.contract, mandateId: state.meta.mandateId, url, at: state.meta.at });
+    try { await navigator.clipboard.writeText(text); setCopy({ status: 'copied', text }); } catch { setCopy({ status: 'failed', text }); }
   }
   // shareable: /recompute?run=custody&auto=1 opens the page and runs it
   useEffect(() => {
@@ -47,6 +56,13 @@ export default function Recompute() {
         <>
           <div className="card" role="status" style={{ marginTop: 12 }}>
             {failed === 0 ? <span className="pill ok">{state.checks.length} of {state.checks.length} checks recomputed and agree</span> : <span className="pill bad">{failed} of {state.checks.length} checks DISAGREE</span>} <span style={{ color: 'var(--muted)' }}>for: {state.ranFor}</span>
+            <div className="row" style={{ marginTop: 8 }}>
+              <button onClick={() => void copyResult()}>Copy result</button>
+              <span role="status" style={{ color: 'var(--muted)', fontSize: 13 }}>
+                {copy.status === 'copied' ? 'Copied: plain text with the result, contract, mandate and this page link.' : copy.status === 'failed' ? 'Your browser blocked clipboard access. Select the text below and copy it.' : 'Copies a plain-text summary, including any check that disagrees.'}
+              </span>
+            </div>
+            {copy.status === 'failed' && <textarea readOnly aria-label="Result summary to copy" value={copy.text} rows={10} onFocus={(e) => e.currentTarget.select()} style={{ marginTop: 8 }} />}
           </div>
           <div className="card" style={{ marginTop: 12 }}>
             <table><thead><tr><th>Check</th><th>Chain / run file says</th><th>Your browser got</th><th /></tr></thead><tbody>

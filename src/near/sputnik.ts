@@ -2,7 +2,7 @@
 import type { Account } from 'near-api-js';
 import { view, b64, TGAS } from './chain.js';
 
-export type VoteAction = 'VoteApprove' | 'VoteReject' | 'VoteRemove';
+export type VoteAction = 'VoteApprove' | 'VoteReject' | 'VoteRemove' | 'Finalize';
 export type ProposalStatus = 'InProgress' | 'Approved' | 'Rejected' | 'Removed' | 'Expired' | 'Moved' | 'Failed';
 
 export interface Proposal {

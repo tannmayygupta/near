@@ -6,6 +6,7 @@ import { TIER_RULES } from '@/components/mandates';
 import { Acct } from '@/components/acct';
 import { RunTxList } from '@/components/real';
 import { useWallet } from '@/components/wallet';
+import { actProposalTx } from '@/lib/dao-tx';
 import type { DaoProposal } from '@/lib/types';
 
 const kindName = (k: Record<string, unknown>) => Object.keys(k)[0] ?? 'unknown';
@@ -43,8 +44,9 @@ export default function Votes() {
   const [msg, setMsg] = useState<Record<number, string>>({});
 
   async function vote(id: number, action: 'VoteApprove' | 'VoteReject', kind: unknown) {
-    // this Sputnik version requires the proposal kind to be echoed back in act_proposal
-    const r = await w.call(ENV.dao, { methodName: 'act_proposal', args: { id, action, proposal: kind }, gas: '150000000000000', deposit: '0' });
+    // this Sputnik version requires the proposal kind to be echoed back in act_proposal (payload built in lib/dao-tx.ts, checked by tests/wallet-parity.test.ts)
+    const tx = actProposalTx(ENV.dao, id, action, kind);
+    const r = await w.call(tx.receiverId, tx);
     setMsg((m) => ({ ...m, [id]: r.ok ? `${action} sent` : `error: ${r.error}` }));
     props.reload();
   }

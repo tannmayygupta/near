@@ -1,6 +1,7 @@
 // Worker entry. Production wiring only: real OutLayer client (configurable base URL), real chain adapter, SQLite state, HTTP API.
 // Env: NEAR_NETWORK(mainnet|testnet|sandbox) DAO_ACCOUNT MANDATE_CONTRACT AGENT_ACCOUNT_ID AGENT_SECRET_KEY OUTLAYER_WK [OUTLAYER_BASE_URL]
-//      SEALED_TERMS_KEY STATE_DB PORT TICK_MS WORKER_CORS_ORIGIN NEAR_AI_API_KEY (optional: /api/parse + AI summaries)
+//      SEALED_TERMS_KEY STATE_DB PORT TICK_MS WORKER_CORS_ORIGIN NEAR_AI_API_KEY (optional: /api/parse + AI summaries + the signature part of GET /attestation)
+//      Public-exposure knobs (all optional): ATTESTATION=0, ATTESTATION_MODEL, REDTEAM_CACHE_S, REDTEAM_CHAIN_PER_HOUR, REDTEAM_CHAIN_PER_DAY, REDTEAM_WALLET_PER_HOUR, PARSE_PER_HOUR
 import { RPC, accountFor, Net } from '../src/near/chain';
 import { OutLayerClient, OUTLAYER_MAINNET } from '../src/near/outlayer';
 import { SimulatedOutLayer } from './adapters/simulated-outlayer';
@@ -25,6 +26,9 @@ import { providerFor } from '../src/near/chain';
 import { validateEnv, classifyPermission, agentKeyProblems } from './config';
 import { Alerts, TelegramSink } from './alerts';
 import { startMonitor } from './monitor';
+import { AttestationService } from './attestation';
+import { RedteamGate } from './redteam';
+import { WindowBudget } from './ratelimit';
 
 // Startup guard: every configuration problem at once, before anything is touched (worker/config.ts, tests/hardening.test.ts).
 const envCheck = validateEnv(process.env);
@@ -88,6 +92,14 @@ const clock: Clock = { nowS: () => Math.floor(Date.now() / 1000), sleep: (ms) =>
 let lastTick = 0, ticking = false;
 const lastDry: Record<number, unknown> = {}; // live-dryrun: latest decision per mandate (also served in /health)
 const ai = process.env.NEAR_AI_API_KEY ? new NearAiClient() : null;
+const PARSE_MODEL = process.env.PARSE_MODEL ?? 'Qwen/Qwen3.8-27B'; // confidential TEE model; measured 21s/1 attempt vs glm-5.3-flash 6-170s (erratic reasoning time)
+const num = (k: string, dflt: number) => { const v = Number(process.env[k]); return process.env[k] && Number.isFinite(v) && v >= 0 ? v : dflt; };
+// Live attestation check (GET /attestation, summary in /health): fresh nonce + one signed completion against NEAR AI Cloud, cached 1 h, refreshed in the background.
+// ATTESTATION=0 turns it off. Without NEAR_AI_API_KEY only the keyless part runs and the answer says the signature check was not run. worker/attestation.ts
+const attestation = new AttestationService({
+  client: new NearAiClient({ fetch: ((u: string | URL | Request, i?: RequestInit) => fetch(u, { ...i, signal: AbortSignal.timeout(45_000) })) as typeof fetch }),
+  hasKey: !!process.env.NEAR_AI_API_KEY, model: process.env.ATTESTATION_MODEL ?? PARSE_MODEL, log,
+});
 
 const exec = new Executor({
   outlayer, chain, state, clock, log, summarize: ai ? createSummarizer(ai) : undefined,
@@ -116,19 +128,26 @@ const layerA = process.env.LAYER_A_SEED && process.env.LAYER_A_OWNER_ACCOUNT && 
       return { transfer: (b: { to: string; amount: string }) => w.transfer(b), verdict: layerAVerdict, unlistedTo: 'attacker-unlisted.testnet', allowedTo: process.env.LAYER_A_ALLOWED!, smallAmount: '10000000000000000000000', overCapAmount: '500000000000000000000000' }; })()
   : undefined;
 
+// Public red-team: results cached per attack, a GLOBAL hourly budget for attacks that cost gas / touch the wallet, every answer secret-scrubbed (worker/redteam.ts).
+// Env: REDTEAM_CACHE_S (600), REDTEAM_CHAIN_PER_HOUR (6), REDTEAM_CHAIN_PER_DAY (30), REDTEAM_WALLET_PER_HOUR (6); PARSE_PER_HOUR (60) caps /api/parse for all visitors together.
+const redteamDeps = { chain, outlayer, termsFor: (m: Parameters<typeof termsFor>[1]) => termsFor(state, m), nowS: clock.nowS, layerA };
 const api = createApi({
   state, chain, outlayer, isCouncil, nowS: clock.nowS,
-  redteam: { chain, outlayer, termsFor: (m) => termsFor(state, m), nowS: clock.nowS, layerA },
+  redteam: redteamDeps,
+  redteamGate: new RedteamGate(redteamDeps, { cacheTtlS: num('REDTEAM_CACHE_S', 600), chainPerHour: num('REDTEAM_CHAIN_PER_HOUR', 6), chainPerDay: num('REDTEAM_CHAIN_PER_DAY', 30), walletPerHour: num('REDTEAM_WALLET_PER_HOUR', 6) }),
+  parseBudget: new WindowBudget(num('PARSE_PER_HOUR', 60)),
+  attestation: process.env.ATTESTATION === '0' ? undefined : () => attestation.get(),
   cfg: { dao, rpc, corsOrigin: process.env.WORKER_CORS_ORIGIN ?? '*', authRecipient: 'quiet-treasury.worker' },
   parse: ai ? async (intent) => {
-    const r = await parseIntent(intent, { dao, treasurer: 'unknown.near', nowS: clock.nowS(), llm: llmFromClient(ai, process.env.PARSE_MODEL ?? 'Qwen/Qwen3.8-27B') }); // confidential TEE model; measured 21s/1 attempt vs glm-5.3-flash 6-170s (erratic reasoning time)
+    const r = await parseIntent(intent, { dao, treasurer: 'unknown.near', nowS: clock.nowS(), llm: llmFromClient(ai, PARSE_MODEL) });
     return { terms: r.terms, summary: r.summary.join('\n') };
   } : undefined,
-  health: () => ({ lastTick, ticking, net, dao, mandateContract, execMode, ...(ref ? { custody: ref.custody, vault: ref.vaultId } : {}), ...(execMode === 'live-dryrun' ? { dryRun: lastDry } : {}), needsHuman: state.db.prepare("SELECT mandate_id, key, note FROM items WHERE status='needs_review'").all() }),
+  health: () => ({ lastTick, nowS: clock.nowS(), ticking, net, dao, mandateContract, execMode, ...(ref ? { custody: ref.custody, vault: ref.vaultId } : {}), ...(execMode === 'live-dryrun' ? { dryRun: lastDry } : {}), needsHuman: state.db.prepare("SELECT mandate_id, key, note FROM items WHERE status='needs_review'").all(), attestation: attestation.health() }),
 });
 
 const server = await api.listen(Number(process.env.PORT ?? 8787));
 log('listening', { port: process.env.PORT ?? 8787, net });
+if (process.env.ATTESTATION !== '0') attestation.start();
 // Monitor (every 5 min; MONITOR=0 disables): stale tick, items needing a human, a mandate with no progress inside its window, a low vault. worker/monitor.ts
 if (process.env.MONITOR !== '0') {
   startMonitor({

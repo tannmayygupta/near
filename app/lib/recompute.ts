@@ -93,6 +93,25 @@ export async function recomputeRun(run: RunFile, bundle: BundleFile | null, chai
   return out;
 }
 
+/** Plain-text result for the "Copy result" button. Lists EVERY check (a mismatch is never left out or softened) and says how to re-run it. */
+export function recomputeSummary(i: { runLabel: string; checks: Check[]; contract: string; mandateId: number | string | undefined; url: string; at?: string }): string {
+  const total = i.checks.length; const bad = i.checks.filter((c) => !c.ok); const agree = total - bad.length;
+  return [
+    'Quiet Treasury: run recomputed in my browser from public NEAR RPC',
+    `Run: ${i.runLabel}`,
+    `Result: ${agree} of ${total} checks agree${bad.length ? `; ${bad.length} DISAGREE` : ''}`,
+    `Contract: ${i.contract || 'unknown'}`,
+    `Mandate: ${i.mandateId === undefined ? 'unknown' : `#${i.mandateId}`}`,
+    `Page: ${i.url}`,
+    ...(i.at ? [`Checked: ${i.at}`] : []),
+    '',
+    'Checks:',
+    ...i.checks.map((c) => `- [${c.ok ? 'agree' : 'DISAGREE'}] ${c.name} | run file/chain says: ${c.logged} | browser got: ${c.recomputed}`),
+    '',
+    'Scope: this checks that the run file and the chain agree (chunks, sums, price floors, anchored report hash). It does not prove the swap prices themselves, the AI summary, or anything on mainnet.',
+  ].join('\n');
+}
+
 // ---- live chain over public RPC (browser) ----
 export function rpcChain(urls: string[], fetchFn: typeof fetch = fetch): Chain {
   const call = async (method: string, params: unknown) => {

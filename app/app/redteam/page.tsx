@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { getRecordedRun, runRedteam } from '@/lib/data';
 import { ErrorState, PageHead, Src } from '@/components/ui';
 import type { RedteamResult } from '@/lib/types';
+import { useLiveFeatures } from '@/lib/worker-status';
 
 const ATTACKS: { id: string; title: string; what: string }[] = [
   { id: 'over_budget', title: 'Sell more than the mandate budget', what: 'Asks the agent to swap beyond max_sell_amount.' },
@@ -23,6 +24,7 @@ export default function RedTeam() {
   const [res, setRes] = useState<Record<string, RedteamResult | { error: string }>>({});
   const [busy, setBusy] = useState<string | null>(null);
   const [mid, setMid] = useState('');
+  const live = useLiveFeatures(); // static hosted demo: live attacks need a reachable worker; elsewhere they are not gated
   // Default the target to the mandate of the committed run (its terms are public and known); otherwise the worker attacks the latest mandate, whose terms may be unavailable (sealed / other worker).
   const [rec, setRec] = useState<Record<string, RedteamResult>>({});
   useEffect(() => {
@@ -43,6 +45,7 @@ export default function RedTeam() {
   return (
     <>
       <PageHead title="Red team" lead="Each button fires a real attack at the real system. The result below is whatever the system actually answered: nothing is simulated. If an attack is NOT blocked, it says so." />
+      {!live.enabled && <div className="state" role="status"><strong>Live attacks need the worker.</strong> <span>{live.reason}</span></div>}
       <div className="card row">
         <label htmlFor="mid">Target mandate id (optional)</label>
         <input id="mid" type="text" inputMode="numeric" placeholder="e.g. 5" value={mid} onChange={(e) => setMid(e.target.value.replace(/\D/g, ''))} style={{ maxWidth: 140 }} />
@@ -53,7 +56,7 @@ export default function RedTeam() {
           <div className="card" key={a.id}>
             <div className="row" style={{ justifyContent: 'space-between' }}>
               <div><strong>{a.title}</strong><div style={{ color: 'var(--muted)', fontSize: 14 }}>{a.what}</div></div>
-              <button className="danger" disabled={busy !== null} onClick={() => go(a.id)}>{busy === a.id ? 'Attacking…' : 'Run attack'}</button>
+              <button className="danger" disabled={busy !== null || !live.enabled} onClick={() => go(a.id)}>{busy === a.id ? 'Attacking…' : 'Run attack'}</button>
             </div>
             {r && ('error' in r && !('blocked' in r) ? <ErrorState what="Attack call" error={(r as { error: string }).error} /> : (() => {
               const x = r as RedteamResult;
@@ -66,6 +69,7 @@ export default function RedTeam() {
                     {layerLetter(x.layer) && <span className={`pill ${layerLetter(x.layer) === 'A' ? 'ok' : 'warn'}`}>Layer {layerLetter(x.layer)}</span>}
                     <span>Blocked by layer: <strong>{x.layer || 'n/a'}</strong></span><Src s="api" />
                     {x.status !== null && <span className="mono">status {x.status}</span>}
+                    {x.cachedAgeS !== undefined && <span className="mono" title="The worker answers a repeat of the same attack on the same mandate from memory for a few minutes, to protect its gas.">answered {x.cachedAgeS}s ago (cached)</span>}
                   </div>
                   <pre>{x.error || '(no error text)'}</pre>
                   {x.requestId && <div className="mono">request id {x.requestId}</div>}
@@ -89,6 +93,7 @@ export default function RedTeam() {
       })}
       <div className="card" style={{ color: 'var(--muted)', fontSize: 13 }}>
         Layer A = OutLayer wallet policy (enforced inside the enclave). Layer B = mandate contract and worker (destinations and budget). The label comes from the worker’s real response.
+        Attacks that send a transaction share an hourly budget across all visitors (each reverted call still burns gas from the agent key), and a repeat of the same attack on the same mandate is answered from the worker’s memory for a few minutes and says so. An attack that was not attempted says NOT RUN, never BLOCKED.
       </div>
     </>
   );

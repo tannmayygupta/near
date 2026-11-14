@@ -7,7 +7,7 @@ import { ENV } from '@/lib/data';
 // Three groups so a first-time visitor can read the nav: what the DAO decides, what the agent does, how you check it.
 const GROUPS: Array<{ label: string; links: ReadonlyArray<readonly [string, string]> }> = [
   { label: 'Govern', links: [['/', 'DAO'], ['/wizard', 'New mandate'], ['/votes', 'Votes'], ['/reputation', 'Reputation']] },
-  { label: 'Run', links: [['/live', 'Live run'], ['/routes', 'Routes'], ['/copycat', 'Copycat view'], ['/redteam', 'Red team']] },
+  { label: 'Run', links: [['/live', 'Live run'], ['/me', 'My payouts'], ['/routes', 'Routes'], ['/copycat', 'Copycat view'], ['/redteam', 'Red team']] },
   { label: 'Prove', links: [['/custody', 'Custody'], ['/sealed', 'Sealed'], ['/report', 'Report'], ['/verify', 'Verify'], ['/recompute', 'Recompute'], ['/ledger', 'Ledger']] },
 ];
 

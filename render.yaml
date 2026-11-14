@@ -1,0 +1,62 @@
+# Render Blueprint for the Quiet Treasury worker (TESTNET ONLY). Nothing here is a secret: every secret is declared with `sync: false`,
+# which makes Render ask for its value in the dashboard when the Blueprint is first created (it is never stored in this file or in git).
+# Full walk-through, the env var table and the free-tier caveats: docs/DEPLOY.md, section "Hosted worker (testnet)".
+#
+# PLAN: `free` is the default below. A free web service has NO persistent disk (Render does not allow one), sleeps after 15 min without traffic
+# (about a minute to wake) and loses its filesystem on every restart, redeploy and spin-down. That is acceptable for the public demo because the chain
+# is the source of truth and MANDATE_FROM_ID makes the worker ignore every old mandate. To keep sqlite, the ref ledger and wallet policies across restarts:
+# change `plan` to a paid instance (e.g. 0.5c-512mb, the smallest in Render's current naming; check the price in the dashboard) and uncomment the `disk` block.
+services:
+  - type: web
+    name: quiet-treasury-worker
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: free
+    region: oregon
+    healthCheckPath: /health
+    autoDeployTrigger: "off" # deploy by hand (or switch to `commit`); a redeploy restarts the worker
+    # disk:                  # paid plans only
+    #   name: qt-data
+    #   mountPath: /data
+    #   sizeGB: 1
+    envVars:
+      # ---- public configuration (testnet ids from data/testnet-public.json; safe to commit) ----
+      - key: NEAR_NETWORK
+        value: testnet
+      - key: EXEC_MODE
+        value: testnet-outlayer # real testnet execution, vault = OutLayer custody wallet. (`simulated` = fills are NOT trades.)
+      - key: REQUIRE_SCOPED_KEY
+        value: "1" # refuse to start unless AGENT_SECRET_KEY is the 5-method function-call key
+      - key: WORKER_CORS_ORIGIN
+        value: https://tannmayygupta.github.io # the dashboard's origin (no path, no trailing slash)
+      - key: DAO_ACCOUNT
+        value: quietdao-83872.sputnikv2.testnet
+      - key: MANDATE_CONTRACT
+        value: qtmandate2-83872.testnet
+      - key: AGENT_ACCOUNT_ID
+        value: qtagent-68669.testnet
+      - key: NEAR_TESTNET_RPC
+        value: https://test.rpc.fastnear.com
+      - key: MANDATE_FROM_ID
+        value: "14" # 1 + the highest mandate id on the contract (ids 0..13 existed on 2026-11-14): a fresh worker must not re-handle settled or cancelled mandates
+      - key: SIM_QUOTE_RECIPIENT
+        value: "e016bb364245bb86db1a31b85bcc952056a54ff906fe79de9659589f49480887" # public 64-hex address (data/testnet-layer-a.json wallet.address): recipient of the read-only 1Click price quote
+      - key: REF_LEDGER
+        value: /data/ref-ledger.json
+      - key: CUSTODY_POLICIES
+        value: /data/custody-policies.json
+      - key: STATE_DB
+        value: /data/worker.sqlite
+      # ---- secrets: Render asks for each value on first creation; paste TESTNET keys only (see docs/DEPLOY.md) ----
+      - key: AGENT_SECRET_KEY # data/secret/agent-scoped-key.json -> secretKey (the function-call key limited to the 5 agent methods)
+        sync: false
+      - key: CUSTODY_OWNER_KEY # data/secret/testnet-config.json -> accounts.agent.secretKey (FULL-ACCESS key of the agent account: writes the OutLayer wallet policy)
+        sync: false
+      - key: CUSTODY_SEED # quiet-treasury-custody-<suffix>: the seed the recorded custody run used (scripts/testnet/custody.ts)
+        sync: false
+      - key: SEALED_TERMS_KEY # any 64 hex characters: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+        sync: false
+      - key: NEAR_AI_API_KEY # a NEAR AI Cloud inference key (sk-...): enables /api/parse and the signature part of /attestation
+        sync: false
+      # Optional operator alerts (ALERT_TELEGRAM_TOKEN + ALERT_TELEGRAM_CHAT, both or neither) are not declared here so the first deploy never waits on them: add them in the dashboard if you want them.

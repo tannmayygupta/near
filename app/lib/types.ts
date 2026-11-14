@@ -155,7 +155,7 @@ export type Report = {
 };
 
 export type VerifyCheck = { name: string; ok: boolean; detail: string };
-export type RedteamResult = { attack: string; blocked: boolean; layer: string; status: number | null; error: string; requestId: string | null };
+export type RedteamResult = { attack: string; blocked: boolean; layer: string; status: number | null; error: string; requestId: string | null; /** set when the worker answered from its short-lived cache (seconds since the attack ran) */ cachedAgeS?: number };
 export type Balances = { token: string; symbol: string; amount: string; where: 'wallet' | 'intents' | 'confidential' | 'dao' }[];
 export type ParseResult = { terms: MandateTerms; summary: string; attestation?: { signer: string; nonceEchoed: boolean } };
 

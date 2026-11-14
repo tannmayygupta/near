@@ -2,11 +2,13 @@
 
 Quiet Treasury: a NEAR DAO votes once on a plain-English mandate; a bounded agent executes it in price-floored chunks, pays contributors, returns leftovers and anchors a verifiable settlement report on-chain. Everything below runs on **public NEAR testnet**; nothing was run with mainnet money (see "Not proven").
 
+Security model, what each safety layer does and does not stop, and what a stolen key or a hostile operator could do: [SECURITY.md](../SECURITY.md).
+
 ## 1. Run it (no keys needed)
 
 ```
 npm ci
-npm test              # 176 unit tests (vitest): executor, guards, parser, verifier, custody policy, routes; the Rust contract's 36 tests (31 unit + 5 property tests) run in CI (cargo test --release)
+npm test              # 302 unit tests (vitest): executor, guards, parser, verifier, custody policy, routes; the Rust contract's 36 tests (31 unit + 5 property tests) run in CI (cargo test --release)
 npm run demo          # the whole story offline (simulation, ~2 s, exit code 0 only if every check holds)
 npm run verify        # independent verifier on three recorded proof bundles (13 + 21 + 16 checks), offline
 npm run secret-scan   # 0 findings expected
@@ -37,7 +39,7 @@ Full claim-by-claim table with status (VERIFIED-TESTNET / LOCAL / UNVERIFIED): `
 
 ## 3. See it, and check a run in your own browser
 
-`npm --prefix app ci && npm run dashboard` -> http://localhost:3100 (reads the same recorded runs and live testnet RPC), or the hosted static copy: https://tannmayygupta.github.io/near/. Pages: DAO, wizard, votes, reputation, live run, copycat view, red team, report, routes, **custody**, sealed, verify, ledger, **recompute**.
+`npm --prefix app ci && npm run dashboard` -> http://localhost:3100 (reads the same recorded runs and live testnet RPC), or the hosted static copy: https://tannmayygupta.github.io/near/. Pages: DAO, wizard, votes, reputation, live run, **my payouts** (`/me`: type any account, see every payout, fee and return it received in the recorded runs plus its live USDT.e balance), copycat view, red team, report, routes, **custody**, sealed, verify, ledger, **recompute**.
 
 **`/recompute`** is the shortest proof: pick a recorded run and your browser re-reads the mandate from the contract (`qtmandate2-83872.testnet`) and every chunk and completion transaction from public RPC, then re-derives the commitment hash, the chunk sums, the price floor and the report hash. Nothing of ours is trusted in that path: no worker, no database. It is the same code the unit tests run (`app/lib/recompute.ts`, `tests/recompute.test.ts`).
 

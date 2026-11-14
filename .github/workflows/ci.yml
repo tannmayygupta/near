@@ -50,6 +50,7 @@ jobs:
           STATIC_EXPORT: '1'
           NEXT_PUBLIC_STATIC_DEMO: '1'
           NEXT_PUBLIC_NEAR_NETWORK: testnet
+          NEXT_PUBLIC_WORKER_API: ${{ vars.WORKER_API }} # the repository variable the owner sets for the hosted worker; empty/unset builds the no-worker demo
 
   contract:
     name: Rust contract tests

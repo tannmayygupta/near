@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { recomputeRun, sha256Hex, termsOf, type Chain, type ChainMandate, type ParsedTx, type RunFile } from '../app/lib/recompute';
+import { recomputeRun, recomputeSummary, sha256Hex, termsOf, type Chain, type ChainMandate, type ParsedTx, type RunFile } from '../app/lib/recompute';
 import { canonical } from '../app/lib/canon';
 
 const CONTRACT = 'qt.testnet', AGENT = 'agent.testnet';
@@ -75,5 +75,30 @@ describe('in-browser recompute', () => {
     const f = await fixture();
     expect(ok(await recomputeRun(f.run, null, { mandate: async () => null, tx: async () => null }))).toBe(false);
     expect(ok(await recomputeRun({}, null, f.chain))).toBe(false);
+  });
+});
+
+describe('"Copy result" text on /recompute', () => {
+  const base = { runLabel: 'OutLayer custody run', contract: CONTRACT, mandateId: 3, url: 'https://example.test/near/recompute/?run=custody&auto=1', at: '2026-11-14T00:00:00.000Z' };
+  it('a passing result says N of N agree and carries run, contract, mandate and the page link', async () => {
+    const f = await fixture(); const checks = await recomputeRun(f.run, null, f.chain);
+    const t = recomputeSummary({ ...base, checks });
+    expect(t).toContain(`Result: ${checks.length} of ${checks.length} checks agree\n`);
+    expect(t).not.toMatch(/DISAGREE/);
+    for (const s of ['Run: OutLayer custody run', `Contract: ${CONTRACT}`, 'Mandate: #3', 'Page: https://example.test/near/recompute/?run=custody&auto=1']) expect(t).toContain(s);
+    expect(t.split('\n').filter((l) => l.startsWith('- [agree]')).length).toBe(checks.length);
+  });
+  it('a FAILING result is reported as failing, names the mismatch with both values, and never says everything agrees', async () => {
+    const f = await fixture(); const chain: Chain = { mandate: async () => ({ ...f.mandate, sold: '301' }), tx: f.chain.tx };
+    const checks = await recomputeRun(f.run, null, chain); const bad = checks.filter((c) => !c.ok);
+    expect(bad.length).toBeGreaterThan(0);
+    const t = recomputeSummary({ ...base, checks });
+    expect(t).toContain(`Result: ${checks.length - bad.length} of ${checks.length} checks agree; ${bad.length} DISAGREE`);
+    expect(t).not.toContain(`Result: ${checks.length} of ${checks.length} checks agree`);
+    for (const c of bad) expect(t).toContain(`- [DISAGREE] ${c.name} | run file/chain says: ${c.logged} | browser got: ${c.recomputed}`);
+  });
+  it('unknown ids are written as unknown, not invented', () => {
+    const t = recomputeSummary({ ...base, checks: [], contract: '', mandateId: undefined, at: undefined });
+    expect(t).toContain('Contract: unknown'); expect(t).toContain('Mandate: unknown'); expect(t).not.toContain('Checked:');
   });
 });

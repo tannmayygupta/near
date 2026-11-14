@@ -45,6 +45,10 @@ export interface RefOpts {
   policy?: MandatePolicy;
   rpc: string;
   dex?: string;
+  /** wrapped-NEAR token contract (default wrap.testnet; mainnet: wrap.near) */
+  wrap?: string;
+  /** restrict pool discovery to these Ref pool ids (mainnet has ~9000 pools: scanning them all is slow; the pools are still re-read and sanity-checked) */
+  poolIds?: number[];
   /** native NEAR kept for gas/storage and NOT counted as budget (the DAO funding transfer is what raises the budget above this) */
   reserveYocto: bigint;
   ledgerPath?: string;
@@ -56,6 +60,7 @@ export interface RefOpts {
 
 export class RefTestnetAdapter implements OutLayerPort {
   private dex: string;
+  private wrap: string;
   private ledger: Record<string, LedgerEntry> = {};
   /** gas burnt + storage deposits paid by the vault itself: added back so that only DAO-funded NEAR counts as budget */
   private spent = 0n;
@@ -68,6 +73,7 @@ export class RefTestnetAdapter implements OutLayerPort {
     if (!o.signer && !o.vault) throw new Error('RefTestnetAdapter needs a signer or a vault account');
     this.signer = o.signer ?? new KeySigner(o.vault!);
     this.dex = o.dex ?? REF_DEX;
+    this.wrap = o.wrap ?? WRAP;
     if (o.ledgerPath && existsSync(o.ledgerPath)) {
       try { const j = JSON.parse(readFileSync(o.ledgerPath, 'utf8')); this.ledger = j.entries ?? {}; this.spent = BigInt(j.spent ?? '0'); this.setupDone = !!j.setupDone; } catch { this.ledger = {}; }
     }
@@ -129,8 +135,17 @@ export class RefTestnetAdapter implements OutLayerPort {
   private async candidates(a: string, b: string): Promise<Candidate[]> {
     const key = [a, b].sort().join('|');
     if (this.cand && this.cand.key === key && Date.now() - this.cand.at < 10 * 60_000) return this.cand.list;
-    const n = await view<number>(this.o.rpc, this.dex, 'get_number_of_pools');
     const list: Candidate[] = [];
+    if (this.o.poolIds?.length) {
+      for (const id of this.o.poolIds) {
+        const p = await view<any>(this.o.rpc, this.dex, 'get_pool', { pool_id: id }).catch(() => null);
+        const t: string[] | undefined = p?.token_account_ids;
+        if (p && t && t.length === 2 && t.includes(a) && t.includes(b) && p.pool_kind === 'SIMPLE_POOL' && p.amounts.every((x: string) => BigInt(x) > 0n)) list.push({ id, tokens: t, amounts: p.amounts, fee: p.total_fee });
+      }
+      this.cand = { at: Date.now(), list, key };
+      return list;
+    }
+    const n = await view<number>(this.o.rpc, this.dex, 'get_number_of_pools');
     for (let from = 0; from < n; from += 300) {
       const page = await view<any[]>(this.o.rpc, this.dex, 'get_pools', { from_index: from, limit: 300 });
       page.forEach((p, i) => { const t: string[] = p.token_account_ids; if (t.length === 2 && t.includes(a) && t.includes(b) && p.pool_kind === 'SIMPLE_POOL' && p.amounts.every((x: string) => BigInt(x) > 0n)) list.push({ id: from + i, tokens: t, amounts: p.amounts, fee: p.total_fee }); });
@@ -152,7 +167,7 @@ export class RefTestnetAdapter implements OutLayerPort {
     }
     // FAIL CLOSED: if a reference price is configured but unavailable (and no recent good one exists) the band cannot be applied, so we do not trade at all
     let ref: number | null = null;
-    if (tokenIn === WRAP && this.guard) { try { ref = await this.guard.get(); } catch (e) { throw new OutLayerError('upstream', 503, { message: (e as Error).message }); } }
+    if (tokenIn === this.wrap && this.guard) { try { ref = await this.guard.get(); } catch (e) { throw new OutLayerError('upstream', 503, { message: (e as Error).message }); } }
     const [lo, hi] = this.o.band ?? [0.2, 5];
     let best: { id: number; out: bigint; feeBps: number } | null = null;
     for (const c of fresh) {
@@ -162,7 +177,7 @@ export class RefTestnetAdapter implements OutLayerPort {
       const out = BigInt(await view<string>(this.o.rpc, this.dex, 'get_return', { pool_id: c.id, token_in: tokenIn, amount_in: amountIn.toString(), token_out: tokenOut }));
       if (!best || out > best.out) best = { id: c.id, out, feeBps: c.fee };
     }
-    if (!best) throw new OutLayerError('bad_request', 400, { message: 'no sane Ref testnet pool with enough liquidity for this trade' });
+    if (!best) throw new OutLayerError('bad_request', 400, { message: 'no sane Ref pool with enough liquidity for this trade' });
     return best;
   }
 
@@ -188,7 +203,7 @@ export class RefTestnetAdapter implements OutLayerPort {
   /** "Budget balance": what the DAO funded. For wNEAR = vault native NEAR above the gas reserve + wNEAR held; for other tokens the ft balance. */
   async confidentialBalance(token?: string) {
     const t = bare(token ?? '');
-    if (t === WRAP) return { balance: ((await this.freeNative()) + (await this.ftBalance(WRAP))).toString() };
+    if (t === this.wrap) return { balance: ((await this.freeNative()) + (await this.ftBalance(this.wrap))).toString() };
     return { balance: (await this.ftBalance(t)).toString() };
   }
   async confidentialShield(_b: { token: string; amount: string }, _idem: string): Promise<ActionResponse> { throw new OutLayerError('confidential_unavailable', 503, { error: 'no shield on testnet' }); }
@@ -210,9 +225,9 @@ export class RefTestnetAdapter implements OutLayerPort {
       e = this.put({ ...e, pool: p.id });
     }
     if (e.stage === 'start') { // wrap exactly the missing wNEAR (retry-safe: a refunded earlier attempt leaves wNEAR in the vault)
-      if (tin === WRAP) {
-        const have = await this.ftBalance(WRAP);
-        if (have < amountIn) { const w = await this.call(WRAP, 'near_deposit', {}, TGAS(30), amountIn - have, 0n, `${idem}:wrap`); e = this.put({ ...e, wrapTx: w.hash }); }
+      if (tin === this.wrap) {
+        const have = await this.ftBalance(this.wrap);
+        if (have < amountIn) { const w = await this.call(this.wrap, 'near_deposit', {}, TGAS(30), amountIn - have, 0n, `${idem}:wrap`); e = this.put({ ...e, wrapTx: w.hash }); }
       }
       e = this.put({ ...e, stage: 'wrapped' });
     }
@@ -254,9 +269,9 @@ export class RefTestnetAdapter implements OutLayerPort {
     const token = bare(b.token), amount = BigInt(b.amount);
     const e = prev ?? this.put({ idem, kind: 'withdraw', stage: 'start', amountIn: b.amount, ts: Math.floor(Date.now() / 1000) });
     let hash: string;
-    if (token === WRAP) { // sell-token leftovers: native NEAR back to the DAO (unwrap held wNEAR first if the native free balance is short)
+    if (token === this.wrap) { // sell-token leftovers: native NEAR back to the DAO (unwrap held wNEAR first if the native free balance is short)
       const free = await this.freeNative();
-      if (free < amount) { const w = await this.ftBalance(WRAP); const need = amount - free; if (w > 0n) await this.call(WRAP, 'near_withdraw', { amount: (w < need ? w : need).toString() }, TGAS(30), ONE_YOCTO, 0n, `${idem}:unwrap`); }
+      if (free < amount) { const w = await this.ftBalance(this.wrap); const need = amount - free; if (w > 0n) await this.call(this.wrap, 'near_withdraw', { amount: (w < need ? w : need).toString() }, TGAS(30), ONE_YOCTO, 0n, `${idem}:unwrap`); }
       hash = await this.sendNative(b.to, amount, `${idem}:native`);
     } else {
       if (!(await this.registered(token, b.to))) await this.call(token, 'storage_deposit', { account_id: b.to, registration_only: true }, TGAS(30), STORAGE_FT, STORAGE_FT, `${idem}:reg`);
