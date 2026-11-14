@@ -31,6 +31,7 @@ Everything runs through the same scripts as the testnet runs, with a network pro
 Use the real NEAR price of the day to convert (about US$3.3 per NEAR on the Ref pool when this was written, so roughly US$50 of NEAR must be on hand, of which only a few dollars are "spent").
 
 ## Before you start
+0. `$env:QT_SECRET_DIR='D:\qt-secrets'` (or any folder outside OneDrive), then `npm run mainnet:preflight`. It lists, without printing any key, what is missing.
 1. A **named** mainnet account (for example `yourname.near`; sub-accounts cannot be created under a 64-hex implicit account) with at least 16 NEAR.
 2. Put its id and full-access secret key in `.env` (git-ignored). Never paste the key into a chat, an issue or a commit:
    ```
@@ -64,7 +65,10 @@ Remove-Item Env:ALLOW_MAINNET, Env:LOCK_CONFIRM
 Step 4 is optional. It makes the contract immutable (nobody can upgrade it, including us) and costs the ability to ever fix it; do it only after step 2 passed.
 
 ## Safety rails in the scripts
-* `ALLOW_MAINNET=1` is required by every money-moving command and is never read from `.env`.
+* `ALLOW_MAINNET=1` is required by every money-moving command and **must be set in the shell of that command**. A line `ALLOW_MAINNET=...` in `.env` is refused (`scripts/mainnet/net.ts`, tested), so consent can never become permanent and invisible. (An earlier version of this page said it was "never read from `.env`"; that was not enforced until now.)
+* Secret files go to `QT_SECRET_DIR` (default `data/secret`). A mainnet command refuses to run when that directory is inside OneDrive/Dropbox/iCloud. This repository sits under OneDrive: set `QT_SECRET_DIR=D:\qt-secrets` first.
+* **Contract deploy and `new` are ONE atomic transaction** (no window in which someone else can initialise the contract); one attempt, never a blind retry; the account is read back and checked. Details: `docs/CONTRACT.md`.
+* `npm run mainnet:preflight` (read-only) must show READY before setup; `npm run mainnet:verify` and `npm run mainnet:test` (read-only) check the result afterwards. They are different from `npm run verify:mainnet`, which re-checks the *proof bundle* of the e2e run.
 * The owner key is read only from the environment and is never printed or written anywhere.
 * The mandate budget is capped at 0.6 NEAR in code (`LIMITS.maxSellNear`); the AI cannot raise it.
 * The setup refuses to start if the owner holds less than 16 NEAR, and refuses a non-named owner.

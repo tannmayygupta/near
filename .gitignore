@@ -23,3 +23,7 @@ docs/TEAM-KIT.md
 HARSH.md
 PLAN-100.md
 data/rehearsal-public.json
+
+# local rehearsal scratch (testnet); the evidence we keep is data/rehearsal-test-report.json and data/rehearsal-verify.json
+data/rehearsal2-*
+data/rehearsal3-*

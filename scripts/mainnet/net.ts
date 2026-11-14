@@ -1,6 +1,9 @@
 // Network profile for the mainnet slice and its testnet rehearsal. Everything that differs between the two lives here and nowhere else.
 import './profile.js';
+import { readFileSync } from 'node:fs';
 import { RPC } from '../../src/near/chain.js';
+import { envFileSetsAllowMainnet } from '../../src/near/setup-plan.js';
+import { requireSafeSecretDir } from '../../src/near/secret-dir.js';
 
 export const IS_MAINNET = process.env.QT_NET === 'mainnet';
 const USDC = '17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1'; // native USDC on NEAR (Circle)
@@ -31,8 +34,16 @@ export const LIMITS = {
 
 /** Refuse to touch real money unless the owner said so explicitly in the environment of THIS command. */
 export function requireMainnetConsent(action: string) {
-  if (IS_MAINNET && process.env.ALLOW_MAINNET !== '1') {
+  if (!IS_MAINNET) return;
+  // consent must be typed into the shell of THIS command; a line in .env would make it permanent and invisible
+  let envText = ''; try { envText = readFileSync('.env', 'utf8'); } catch { /* no .env */ }
+  if (envFileSetsAllowMainnet(envText)) {
+    console.error('REFUSING: .env contains ALLOW_MAINNET. Remove that line; set it only in the shell of the command ($env:ALLOW_MAINNET=\'1\').');
+    process.exit(2);
+  }
+  if (process.env.ALLOW_MAINNET !== '1') {
     console.error(`REFUSING to ${action} on MAINNET: set ALLOW_MAINNET=1 for this command to confirm you mean real money.`);
     process.exit(2);
   }
+  requireSafeSecretDir(true);
 }

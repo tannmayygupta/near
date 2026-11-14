@@ -1,0 +1,89 @@
+{
+  "network": "testnet",
+  "verifiedAt": "2026-11-14T16:06:57.746Z",
+  "rpc": "https://test.rpc.fastnear.com",
+  "contract": "qt-mandate.qtr-a-53587.testnet",
+  "explorer": "https://explorer.testnet.near.org/accounts/qt-mandate.qtr-a-53587.testnet",
+  "onChainCodeHash": "Goj1eumfHA866p2MiZEQHHrK9FvFvZ12Ek5LLASdFHV9",
+  "committedWasmCodeHash": "Goj1eumfHA866p2MiZEQHHrK9FvFvZ12Ek5LLASdFHV9",
+  "wasmBytes": 369245,
+  "deployTx": "GHp2Ua2jNxyGCBoJXod5fBP53RSDgbn5bKxtExDZ135x",
+  "result": "VERIFIED",
+  "checks": [
+    {
+      "name": "network identity",
+      "ok": true,
+      "detail": "RPC reports chain_id \"testnet\", expected \"testnet\""
+    },
+    {
+      "name": "contract account exists",
+      "ok": true,
+      "detail": "qt-mandate.qtr-a-53587.testnet"
+    },
+    {
+      "name": "deployed code hash equals the committed wasm",
+      "ok": true,
+      "detail": "on chain Goj1eumfHA866p2MiZEQHHrK9FvFvZ12Ek5LLASdFHV9 | local wasm Goj1eumfHA866p2MiZEQHHrK9FvFvZ12Ek5LLASdFHV9"
+    },
+    {
+      "name": "contract version is 2",
+      "ok": true,
+      "detail": "get_version = 2"
+    },
+    {
+      "name": "contract is initialised and get_stats is well-formed",
+      "ok": true,
+      "detail": "mandates 1, chunks 2, completed 1"
+    },
+    {
+      "name": "DAO configured as intended",
+      "ok": true,
+      "detail": "contract dao quietdao-51997.sputnikv2.testnet | expected quietdao-51997.sputnikv2.testnet"
+    },
+    {
+      "name": "agent configured as intended",
+      "ok": true,
+      "detail": "contract agent qt-agent.qtr-a-53587.testnet | expected qt-agent.qtr-a-53587.testnet"
+    },
+    {
+      "name": "no DAO handover pending",
+      "ok": true,
+      "detail": "pending_dao = null"
+    },
+    {
+      "name": "get_config agrees with get_stats",
+      "ok": true,
+      "detail": "get_config = [\"quietdao-51997.sputnikv2.testnet\",\"qt-agent.qtr-a-53587.testnet\",1]"
+    },
+    {
+      "name": "is_paused agrees with get_stats",
+      "ok": true,
+      "detail": "is_paused = false | stats.paused = false"
+    },
+    {
+      "name": "DAO account exists",
+      "ok": true,
+      "detail": "quietdao-51997.sputnikv2.testnet"
+    },
+    {
+      "name": "DAO answers get_policy with roles",
+      "ok": true,
+      "detail": "roles: all, council"
+    },
+    {
+      "name": "agent account exists",
+      "ok": true,
+      "detail": "qt-agent.qtr-a-53587.testnet"
+    },
+    {
+      "name": "contract account keys (info: 0 full-access keys = locked, immutable)",
+      "ok": true,
+      "detail": "0 full-access key(s), 0 function-call key(s)"
+    },
+    {
+      "name": "agent signs with a function-call key limited to the contract and its 5 methods",
+      "ok": true,
+      "detail": "receiver qt-mandate.qtr-a-53587.testnet, methods begin_settlement,complete,expire,mark_funded,record_chunk"
+    }
+  ]
+}

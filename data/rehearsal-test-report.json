@@ -1,0 +1,230 @@
+{
+  "network": "testnet",
+  "contract": "qt-mandate.qtr-a-53587.testnet",
+  "explorer": "https://explorer.testnet.near.org/accounts/qt-mandate.qtr-a-53587.testnet",
+  "rpc": "https://test.rpc.fastnear.com",
+  "ranAt": "2026-11-14T16:10:28.911Z",
+  "mode": "views+auth",
+  "inventory": {
+    "total": 21,
+    "production": 20,
+    "init": 1,
+    "dao": 5,
+    "agent": 5,
+    "proposedDao": 1,
+    "view": 7,
+    "metadata": 1,
+    "featureGated": 1
+  },
+  "auth": {
+    "caller": "qt-alice.qtr-a-53587.testnet",
+    "gasCostNear": "0.012634"
+  },
+  "summary": {
+    "pass": 21,
+    "fail": 0,
+    "skip": 0
+  },
+  "rows": [
+    {
+      "method": "get_stats",
+      "kind": "view",
+      "input": "{}",
+      "expected": "well-formed, status counts add up",
+      "status": "PASS",
+      "tx": null,
+      "actual": "mandates 1, chunks 2, completed 1, paused false, pending_dao null"
+    },
+    {
+      "method": "get_version",
+      "kind": "view",
+      "input": "{}",
+      "expected": "2",
+      "actual": "2",
+      "tx": null,
+      "status": "PASS"
+    },
+    {
+      "method": "get_config",
+      "kind": "view",
+      "input": "{}",
+      "expected": "[dao, agent, next_id] equal to get_stats",
+      "actual": "[\"quietdao-51997.sputnikv2.testnet\",\"qt-agent.qtr-a-53587.testnet\",1]",
+      "tx": null,
+      "status": "PASS"
+    },
+    {
+      "method": "is_paused",
+      "kind": "view",
+      "input": "{}",
+      "expected": "boolean equal to stats.paused (false)",
+      "actual": "false",
+      "tx": null,
+      "status": "PASS"
+    },
+    {
+      "method": "get_mandate",
+      "kind": "view",
+      "input": "{\"id\":0}",
+      "expected": "mandate 0, well-formed",
+      "actual": "status Completed, chunks 2, sold 300000000000000000000000/300000000000000000000000",
+      "tx": null,
+      "status": "PASS"
+    },
+    {
+      "method": "get_mandate (unknown id)",
+      "kind": "view",
+      "input": "{\"id\":2^53-1}",
+      "expected": "null",
+      "actual": "null",
+      "tx": null,
+      "status": "PASS"
+    },
+    {
+      "method": "list_mandates",
+      "kind": "view",
+      "input": "{\"from\":0,\"limit\":10}",
+      "expected": "array of 1 well-formed mandates in id order",
+      "actual": "1 mandate(s)",
+      "tx": null,
+      "status": "PASS"
+    },
+    {
+      "method": "get_trust",
+      "kind": "view",
+      "input": "{\"treasurer\":\"qt-bob.qtr-a-53587.testnet\"}",
+      "expected": "integer between 0 and completed (1)",
+      "actual": "1",
+      "tx": null,
+      "status": "PASS"
+    },
+    {
+      "method": "contract_source_metadata",
+      "kind": "view (SDK, NEP-330)",
+      "input": "{}",
+      "expected": "version, link and the nep330 standard",
+      "actual": "version 2.0.0, link https://github.com/tannmayygupta/near/tree/main/contracts/mandate",
+      "tx": null,
+      "status": "PASS"
+    },
+    {
+      "method": "create_mandate",
+      "kind": "dao-only",
+      "input": "{\"treasurer\":\"qt-agent.qtr-a-53587.testnet\",\"terms_hash\":\"x\",\"terms_json\":null,\"sell_token\":\"x\",\"max_sell\":\"1\",\"start_ns\":1,\"end_ns\":2,\"tier\":\"small\"}",
+      "expected": "refused: \"only the DAO may call this\"",
+      "actual": "rejected by the contract and state unchanged. Indirect: it would also fail validation (terms_hash is 1 character: \"terms_hash must be 64 hex chars\"); the identity of the guard rests on the Rust unit tests",
+      "tx": "https://explorer.testnet.near.org/transactions/DqRBRMzpnkoWqkeZkyKk4xkTjpoiX7TpTMdjCZcakfYh",
+      "status": "PASS",
+      "evidence": "indirect"
+    },
+    {
+      "method": "cancel_mandate",
+      "kind": "dao-only",
+      "input": "{\"id\":9007199254740991}",
+      "expected": "refused: \"only the DAO may call this\"",
+      "actual": "rejected by the contract and state unchanged. Indirect: it would also fail validation (no mandate has that id: \"no such mandate\"); the identity of the guard rests on the Rust unit tests",
+      "tx": "https://explorer.testnet.near.org/transactions/9CYhAF2uEnSC7sAWVKHqPeyTDVF2HkQuFEdyjVTqhZg6",
+      "status": "PASS",
+      "evidence": "indirect"
+    },
+    {
+      "method": "set_agent",
+      "kind": "dao-only",
+      "input": "{\"agent\":\"quietdao-51997.sputnikv2.testnet\"}",
+      "expected": "refused: \"only the DAO may call this\"",
+      "actual": "rejected by the contract and state unchanged. Indirect: it would also fail validation (the new agent equals the DAO: \"the agent must not be the DAO\"); the identity of the guard rests on the Rust unit tests",
+      "tx": "https://explorer.testnet.near.org/transactions/GvAwEUJ24tGgUmDxDcZYk8GQrm3hnVYhV5oHh2Setiim",
+      "status": "PASS",
+      "evidence": "indirect"
+    },
+    {
+      "method": "set_paused",
+      "kind": "dao-only",
+      "input": "{\"paused\":false}",
+      "expected": "refused: \"only the DAO may call this\"",
+      "actual": "rejected by the contract; with valid arguments only the guard could reject it (panic text is not kept in the release wasm)",
+      "tx": "https://explorer.testnet.near.org/transactions/3Gmci6gskPMQMq1VdCTHHA2NRwKJZRurqYm4teiCnRza",
+      "status": "PASS",
+      "evidence": "decisive"
+    },
+    {
+      "method": "propose_dao",
+      "kind": "dao-only",
+      "input": "{\"new_dao\":\"qt-agent.qtr-a-53587.testnet\"}",
+      "expected": "refused: \"only the DAO may call this\"",
+      "actual": "rejected by the contract and state unchanged. Indirect: it would also fail validation (the proposed DAO equals the agent: \"the new DAO must not be the agent\"); the identity of the guard rests on the Rust unit tests",
+      "tx": "https://explorer.testnet.near.org/transactions/5B1jK6io3wqtFzibUMtrxSvvUu6cwUPzfrKxUDZLWCwS",
+      "status": "PASS",
+      "evidence": "indirect"
+    },
+    {
+      "method": "accept_dao",
+      "kind": "proposed-dao-only",
+      "input": "{}",
+      "expected": "refused: \"no DAO handover is pending\"",
+      "actual": "rejected by the contract and state unchanged. Indirect: it would also fail validation (with no pending handover it panics before any state is touched); the identity of the guard rests on the Rust unit tests  [limitation: with no handover pending the refusal comes from the state check, so this case cannot prove the identity check; that check (\"only the proposed DAO may accept\") is covered by the contract unit tests, and proving it on a live contract would need a real DAO proposal]",
+      "tx": "https://explorer.testnet.near.org/transactions/xTqgVgNRRAsP2rkzCV5TDxMQqmSj1Bt1cG9yPDyUMQ9",
+      "status": "PASS",
+      "evidence": "indirect"
+    },
+    {
+      "method": "mark_funded",
+      "kind": "agent-only",
+      "input": "{\"id\":9007199254740991}",
+      "expected": "refused: \"only the agent may call this\"",
+      "actual": "rejected by the contract and state unchanged. Indirect: it would also fail validation (no mandate has that id: \"no such mandate\"); the identity of the guard rests on the Rust unit tests",
+      "tx": "https://explorer.testnet.near.org/transactions/sDjatZ2ocbr2x2GShpRaVsgE6NsJ4omN3rAEiiTmapb",
+      "status": "PASS",
+      "evidence": "indirect"
+    },
+    {
+      "method": "record_chunk",
+      "kind": "agent-only",
+      "input": "{\"id\":9007199254740991,\"index\":0,\"sold_amount\":\"1\"}",
+      "expected": "refused: \"only the agent may call this\"",
+      "actual": "rejected by the contract and state unchanged. Indirect: it would also fail validation (no mandate has that id: \"no such mandate\"); the identity of the guard rests on the Rust unit tests",
+      "tx": "https://explorer.testnet.near.org/transactions/HJzt3yQoExwsE4t8Nh1ykSqx4t58aUfXCEy3MsBFCP5J",
+      "status": "PASS",
+      "evidence": "indirect"
+    },
+    {
+      "method": "begin_settlement",
+      "kind": "agent-only",
+      "input": "{\"id\":9007199254740991}",
+      "expected": "refused: \"only the agent may call this\"",
+      "actual": "rejected by the contract and state unchanged. Indirect: it would also fail validation (no mandate has that id: \"no such mandate\"); the identity of the guard rests on the Rust unit tests",
+      "tx": "https://explorer.testnet.near.org/transactions/9k59DKSvUjwH2f9gPr2ZwjrPofveDszFfh8HPfaWLrrV",
+      "status": "PASS",
+      "evidence": "indirect"
+    },
+    {
+      "method": "complete",
+      "kind": "agent-only",
+      "input": "{\"id\":9007199254740991,\"report_hash\":\"x\",\"violations\":0,\"revealed_terms\":null}",
+      "expected": "refused: \"only the agent may call this\"",
+      "actual": "rejected by the contract and state unchanged. Indirect: it would also fail validation (report_hash is 1 character: \"report_hash must be 64 hex chars\"); the identity of the guard rests on the Rust unit tests",
+      "tx": "https://explorer.testnet.near.org/transactions/GktLyTszGFC5yBJ8vw1gqZke3AQMwqaDUvKcrLXDqvYK",
+      "status": "PASS",
+      "evidence": "indirect"
+    },
+    {
+      "method": "expire",
+      "kind": "agent-only",
+      "input": "{\"id\":9007199254740991}",
+      "expected": "refused: \"only the agent may call this\"",
+      "actual": "rejected by the contract and state unchanged. Indirect: it would also fail validation (no mandate has that id: \"no such mandate\"); the identity of the guard rests on the Rust unit tests",
+      "tx": "https://explorer.testnet.near.org/transactions/FMSwMz1m36hFZv8XbLAiGArxwak7jx3S9q6wyPAEmSFH",
+      "status": "PASS",
+      "evidence": "indirect"
+    },
+    {
+      "method": "(state check)",
+      "kind": "before/after",
+      "input": "",
+      "expected": "get_stats identical before and after all unauthorised calls",
+      "actual": "identical: no state changed",
+      "tx": null,
+      "status": "PASS"
+    }
+  ]
+}

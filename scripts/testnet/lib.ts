@@ -1,14 +1,15 @@
 // Shared helpers for the PUBLIC TESTNET scripts. Secrets live in data/secret (git-ignored); public ids in data/testnet-public.json.
 import { KeyPair } from 'near-api-js';
-import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { RPC, accountFor, callTx, TGAS } from '../../src/near/chain.js';
+import { secretPath, writeSecretFile } from '../../src/near/secret-dir.js';
 import { addProposal, getProposal } from '../../src/near/sputnik.js';
 
 export const HELPER = 'https://helper.nearprotocol.com/account';
 // QT_NET=mainnet selects the mainnet explorer; QT_TAG names the config set (default: the network name). A testnet REHEARSAL of the mainnet scripts uses QT_TAG=rehearsal so it never touches the real testnet config.
 export const NET: 'testnet' | 'mainnet' = process.env.QT_NET === 'mainnet' ? 'mainnet' : 'testnet';
 export const TAG = process.env.QT_TAG ?? NET;
-export const CONFIG_PATH = `data/secret/${TAG}-config.json`;
+export const CONFIG_PATH = secretPath(`${TAG}-config.json`); // data/secret by default; QT_SECRET_DIR moves every secret file elsewhere
 export const PUBLIC_PATH = `data/${TAG}-public.json`;
 export const explorerAccount = (id: string) => (NET === 'mainnet' ? `https://nearblocks.io/address/${id}` : `https://explorer.testnet.near.org/accounts/${id}`);
 export const explorerTx = (h: string) => (NET === 'mainnet' ? `https://nearblocks.io/txns/${h}` : `https://explorer.testnet.near.org/transactions/${h}`);
@@ -20,7 +21,7 @@ export interface TestnetConfig {
 }
 export const loadConfig = (): TestnetConfig => JSON.parse(readFileSync(CONFIG_PATH, 'utf8'));
 export const hasConfig = () => existsSync(CONFIG_PATH);
-export function saveConfig(c: TestnetConfig) { mkdirSync('data/secret', { recursive: true }); writeFileSync(CONFIG_PATH, JSON.stringify(c, null, 2)); }
+export function saveConfig(c: TestnetConfig) { writeSecretFile(CONFIG_PATH, JSON.stringify(c, null, 2)); }
 export const A = (c: TestnetConfig, n: string) => accountFor(c.rpc, c.accounts[n].accountId, c.accounts[n].secretKey);
 
 /** Free public-testnet account (10 NEAR) via NEAR's helper. */

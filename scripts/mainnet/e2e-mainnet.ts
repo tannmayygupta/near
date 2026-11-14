@@ -27,12 +27,13 @@ import { createSummarizer } from '../../worker/summarizer.js';
 import { pricesSane, priceList, loadConfig, proposeWithHash, voteTx, rec, txs, explorerTx, explorerAccount, sleep, PUBLIC_PATH, TAG } from '../testnet/lib.js';
 import { mainnetRefPrice } from '../testnet/vault.js';
 import { P, IS_MAINNET, LIMITS, requireMainnetConsent } from './net.js';
+import { secretDir, secretPath, writeSecretFile, ensureSecretDir } from '../../src/near/secret-dir.js';
 
 requireMainnetConsent('sell real NEAR on Ref Finance');
 const c = loadConfig();
 const pub = JSON.parse(readFileSync(PUBLIC_PATH, 'utf8').replace(/^﻿/, ''));
 const SELL = P.sellToken, BUY = P.buyToken, STABLE = P.stable, SYM = P.stableSymbol;
-const OUT = IS_MAINNET ? 'data/demo-run/mainnet' : `data/secret/${TAG}`;
+const OUT = IS_MAINNET ? 'data/demo-run/mainnet' : `${secretDir()}/${TAG}`;
 const results: Array<[string, boolean, string]> = [];
 const check = (n: string, ok: boolean, note = '') => { results.push([n, ok, note]); console.log(ok ? 'PASS' : 'FAIL', n, note); };
 const nowS = () => Math.floor(Date.now() / 1000);
@@ -46,7 +47,7 @@ const die = (m: string): never => { console.error('STOP:', m); process.exit(1); 
 const VAULT = c.accounts.vault?.accountId ?? die('no vault in the config: run scripts/mainnet/setup.ts first');
 const vault = accountFor(c.rpc, VAULT, c.accounts.vault.secretKey);
 const ALICE = c.accounts.contributor.accountId, BOB = c.accounts.treasurer.accountId, FEE = c.accounts.funder.accountId;
-const scopedFile = JSON.parse(readFileSync(`data/secret/${TAG}-scoped-key.json`, 'utf8'));
+const scopedFile = JSON.parse(readFileSync(secretPath(`${TAG}-scoped-key.json`), 'utf8'));
 const agent = accountFor(c.rpc, c.accounts.agent.accountId, scopedFile.secretKey); // FUNCTION-CALL key only: it can call 5 methods on the mandate contract and nothing else
 
 // ---------- pre-flight (all read-only): refuse to start on anything unexpected
@@ -60,12 +61,12 @@ const treasuryBefore = await natOf(c.dao);
 if (treasuryBefore < NEAR('1.5')) die(`the DAO treasury holds only ${nearH(treasuryBefore)} NEAR; it must fund the budget`);
 
 // the vault's gas/storage float BEFORE any DAO funding; remembered in a file so a re-run after a partial run cannot mistake funding for float
-const RESERVE_FILE = `data/secret/${TAG}-vault-reserve.json`;
+const RESERVE_FILE = secretPath(`${TAG}-vault-reserve.json`);
 let vaultReserve: bigint;
 if (existsSync(RESERVE_FILE)) vaultReserve = BigInt(JSON.parse(readFileSync(RESERVE_FILE, 'utf8')).yocto);
-else { vaultReserve = await natOf(VAULT); writeFileSync(RESERVE_FILE, JSON.stringify({ yocto: vaultReserve.toString() })); }
+else { vaultReserve = await natOf(VAULT); writeSecretFile(RESERVE_FILE, JSON.stringify({ yocto: vaultReserve.toString() })); }
 const ref = new RefAdapter({
-  vault, rpc: c.rpc, dex: P.dex, wrap: P.wrap, poolIds: P.poolIds, reserveYocto: vaultReserve, ledgerPath: `data/secret/ref-ledger-${TAG}.json`, refPrice: mainnetRefPrice,
+  vault, rpc: c.rpc, dex: P.dex, wrap: P.wrap, poolIds: P.poolIds, reserveYocto: vaultReserve, ledgerPath: secretPath(`ref-ledger-${TAG}.json`), refPrice: mainnetRefPrice,
   log: (k, f) => { if (k === 'tx') rec(`vault: ${f.contract}.${f.method}`, String(f.hash)); },
 });
 console.log(`network ${P.name} | vault ${VAULT} float ${nearH(vaultReserve)} NEAR | DAO ${c.dao} treasury ${nearH(treasuryBefore)} NEAR | contract ${c.mandate}`);
@@ -186,7 +187,7 @@ srv.close();
 check('GET /api/verify: every check green', Array.isArray(checks) && checks.length > 5 && checks.every((x: any) => x.ok), (checks as any[]).filter((x) => !x.ok).map((x) => x.name).join('; '));
 const { anchored: _a, ...reportClean } = state.report(nextId);
 const bundle = { attestation: { report: attestation, nonce }, completions: completions.map((x) => ({ label: x.label, model: x.model, requestBody: x.requestBody, responseBody: x.responseBody, signature: x.signature })), report: reportClean };
-mkdirSync('data/demo-run', { recursive: true }); mkdirSync('app/public/demo-run', { recursive: true }); mkdirSync('data/secret', { recursive: true });
+mkdirSync('data/demo-run', { recursive: true }); mkdirSync('app/public/demo-run', { recursive: true }); ensureSecretDir();
 writeFileSync(`${OUT}-proof-bundle.json`, JSON.stringify(bundle, null, 2));
 const ver = verifyBundle(bundle as any);
 check('independent verifier: attestation nonce, TEE signatures, report hash, price floor, no violations', ver.ok, `${ver.checks.filter((x) => x.ok).length}/${ver.checks.length}`);

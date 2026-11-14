@@ -9,12 +9,14 @@
 // Run (mainnet):   $env:ALLOW_MAINNET='1'; npx tsx --env-file=.env scripts/mainnet/setup.ts      (needs QT_FUNDER_ACCOUNT and QT_FUNDER_KEY in .env: the OWNER's named account + its full-access key)
 // Run (rehearsal): $env:QT_NET='testnet'; npx tsx --env-file=.env scripts/mainnet/setup.ts       (creates its own free testnet owner; touches nothing else)
 import './profile.js';
-import { KeyPair, baseEncode } from 'near-api-js';
-import { createHash } from 'node:crypto';
-import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { KeyPair } from 'near-api-js';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { accountFor, providerFor, view, b64, TGAS, NEAR } from '../../src/near/chain.js';
 import { Acct, TestnetConfig, PUBLIC_PATH, TAG, hasConfig, loadConfig, saveConfig, explorerAccount, explorerTx, helperCreate, sleep } from '../testnet/lib.js';
 import { P, IS_MAINNET, LIMITS, requireMainnetConsent } from './net.js';
+import { setupContract, SetupAbort, type CodeState } from '../../src/near/deploy-atomic.js';
+import { SETUP_PLAN, codeHashOf } from '../../src/near/setup-plan.js';
+import { secretPath, writeSecretFile } from '../../src/near/secret-dir.js';
 
 requireMainnetConsent('create accounts, a DAO and a contract');
 const rpc = P.rpc, prov = providerFor(rpc);
@@ -25,7 +27,7 @@ const die = (m: string): never => { console.error('STOP:', m); process.exit(1); 
 
 // ---------------- the owner (the only account whose key you hand to this script, via the environment, never a file we write)
 let ownerId = process.env.QT_FUNDER_ACCOUNT ?? '', ownerKey = process.env.QT_FUNDER_KEY ?? '';
-const OWNER_FILE = `data/secret/${TAG}-owner.json`;
+const OWNER_FILE = secretPath(`-owner.json`);
 if (!ownerId || !ownerKey) {
   if (IS_MAINNET) die('set QT_FUNDER_ACCOUNT (your named mainnet account) and QT_FUNDER_KEY (its ed25519 secret key) in .env');
   if (existsSync(OWNER_FILE)) ({ accountId: ownerId, secretKey: ownerKey } = JSON.parse(readFileSync(OWNER_FILE, 'utf8')));
@@ -35,7 +37,7 @@ if (!ownerId || !ownerKey) {
     const a = await helperCreate(`qtr-a-${suffix}.testnet`, kpA), b = await helperCreate(`qtr-b-${suffix}.testnet`, kpB);
     await sleep(4000);
     await accountFor(rpc, b.accountId, b.secretKey).transfer({ receiverId: a.accountId, amount: (await bal(b.accountId)) - NEAR('0.3') });
-    mkdirSync('data/secret', { recursive: true }); writeFileSync(OWNER_FILE, JSON.stringify(a, null, 2));
+    writeSecretFile(OWNER_FILE, JSON.stringify(a, null, 2));
     ownerId = a.accountId; ownerKey = a.secretKey; await sleep(3000);
   }
 }
@@ -47,7 +49,7 @@ const have = await bal(ownerId), need = NEAR(LIMITS.setupNear);
 console.log(`network ${P.name} | owner ${ownerId} holds ${nearOf(have)} NEAR | this setup needs about ${LIMITS.setupNear}`);
 if (have < need && !hasConfig()) die(`the owner needs at least ${LIMITS.setupNear} NEAR to run this setup (has ${nearOf(have)})`);
 
-// ---------------- config (secrets only in data/secret/<tag>-config.json, git-ignored)
+// ---------------- config (secrets only in <secret dir>/<tag>-config.json; the secret dir is data/secret (git-ignored) unless QT_SECRET_DIR says otherwise)
 let cfg: TestnetConfig;
 if (hasConfig()) cfg = loadConfig();
 else {
@@ -65,20 +67,13 @@ async function ensureSub(role: string, sub: string, nearAmt: string) {
   await owner.createAccount({ newAccountId: id, publicKey: KeyPair.fromString(cfg.accounts[role].secretKey as any).getPublicKey(), nearToTransfer: NEAR(nearAmt) });
   console.log('created', id.padEnd(40), nearAmt, 'NEAR'); await sleep(2500);
 }
-await ensureSub('council1', 'qt-c1', '2'); // the DAO policy's proposal bond is 1 NEAR (refunded when the proposal executes): council1 proposes, so it needs the bond plus gas
-await ensureSub('council2', 'qt-c2', '0.4');
-await ensureSub('council3', 'qt-c3', '0.4');
-await ensureSub('agent', 'qt-agent', '1.9'); // 1.5 NEAR of it becomes the vault
-await ensureSub('contributor', 'qt-alice', '0.05');
-await ensureSub('treasurer', 'qt-bob', '0.05');
-await ensureSub('funder', 'qt-fee', '0.05'); // role name kept from the testnet config: this account receives the service fee
-await ensureSub('mandate', 'qt-mandate', '4.3'); // 369 KB of wasm = about 3.7 NEAR of storage staking
+for (const s of SETUP_PLAN.subAccounts) await ensureSub(s.role, s.sub, s.near); // amounts and reasons: src/near/setup-plan.ts (the same table the preflight estimates from)
 
 // ---------------- the DAO (real Sputnik v2 factory)
 if (!(await exists(cfg.dao))) {
   const council = ['council1', 'council2', 'council3'].map((n) => cfg.accounts[n].accountId);
   const args = { config: { name: cfg.dao.split('.')[0], purpose: `Quiet Treasury (${P.name} slice)`, metadata: '' }, policy: council };
-  let deposit = 6;
+  let deposit: number = SETUP_PLAN.daoDepositNear;
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
       await owner.callFunction({ contractId: P.factory, methodName: 'create', args: { name: args.config.name, args: b64(args) }, gas: TGAS(150), deposit: NEAR(deposit) });
@@ -97,17 +92,26 @@ console.log('DAO', cfg.dao, '| roles:', (policy.roles ?? []).map((r: any) => r.n
 
 // ---------------- the mandate contract (the committed wasm, nothing else)
 const wasm = readFileSync('contracts/mandate/out/mandate.wasm');
-const localHash = baseEncode(createHash('sha256').update(wasm).digest());
+const localHash = codeHashOf(wasm);
 const mAcc = accountFor(rpc, cfg.accounts.mandate.accountId, cfg.accounts.mandate.secretKey);
+const readState = async (): Promise<CodeState> => {
+  const a: any = await prov.viewAccount({ accountId: cfg.mandate });
+  const st: any = await view(rpc, cfg.mandate, 'get_stats').catch(() => null);
+  return { codeHash: a.codeHash ?? a.code_hash ?? null, version: st ? st.version : null, dao: st?.dao, agent: st?.agent };
+};
+// ONE transaction: DeployContract + FunctionCall(new). Nobody can call new() in between, and a failed new() reverts the deploy. Exactly one attempt, never a blind retry:
+// if the result is uncertain the account is re-read, and anything unexpected stops the script.
 let deployTx = '', initTx = '';
-const cur: any = await prov.viewAccount({ accountId: cfg.mandate });
-if (!cur.codeHash || cur.codeHash === '11111111111111111111111111111111') {
-  const r: any = await mAcc.deployContract(wasm); deployTx = r.transaction?.hash ?? r.transaction_outcome?.id ?? ''; console.log('deployed', deployTx); await sleep(4000);
-}
-let version = 0; try { version = await view<number>(rpc, cfg.mandate, 'get_version'); } catch { /* not initialised */ }
-if (version !== 2) {
-  const r: any = await mAcc.callFunctionRaw({ contractId: cfg.mandate, methodName: 'new', args: { dao: cfg.dao, agent: cfg.accounts.agent.accountId }, gas: TGAS(30) });
-  initTx = r.transaction?.hash ?? r.transaction_outcome?.id ?? ''; console.log('initialised', initTx); await sleep(4000);
+try {
+  const res = await setupContract({
+    send: async (acts) => { const r: any = await mAcc.signAndSendTransaction({ receiverId: cfg.mandate, actions: acts as any }); return { txHash: r.transaction?.hash ?? r.transaction_outcome?.id ?? '' }; },
+    readState, sleep: async (ms) => { await sleep(ms); },
+  }, wasm, { dao: cfg.dao, agent: cfg.accounts.agent.accountId, localHash }, TGAS(30));
+  if (res.txHash) { deployTx = initTx = res.txHash; }
+  console.log(res.outcome === 'already-done' ? 'contract already deployed and initialised for this DAO and agent' : `deploy + init in one transaction: ${res.outcome} ${res.txHash ?? '(no hash: confirmed by reading the account)'}`);
+} catch (e) {
+  if (e instanceof SetupAbort) die(e.message);
+  throw e;
 }
 const after: any = await prov.viewAccount({ accountId: cfg.mandate });
 const onChain = after.codeHash ?? after.code_hash;
@@ -122,20 +126,20 @@ await (async () => {
   const id = `vault.${cfg.accounts.agent.accountId}`;
   if (!cfg.accounts.vault) { cfg.accounts.vault = acct(id, KeyPair.fromRandom('ed25519')); saveConfig(cfg); }
   if (await exists(id)) { console.log('exists ', id); return; }
-  await agentFull.createAccount({ newAccountId: id, publicKey: KeyPair.fromString(cfg.accounts.vault.secretKey as any).getPublicKey(), nearToTransfer: NEAR('1.5') });
-  console.log('created', id.padEnd(40), '1.5 NEAR'); await sleep(2500);
+  await agentFull.createAccount({ newAccountId: id, publicKey: KeyPair.fromString(cfg.accounts.vault.secretKey as any).getPublicKey(), nearToTransfer: NEAR(String(SETUP_PLAN.vaultNear)) });
+  console.log('created', id.padEnd(40), SETUP_PLAN.vaultNear, 'NEAR'); await sleep(2500);
 })();
 
 // ---------------- Layer 0: the agent's function-call key (only these 5 methods on the mandate contract, no deposit)
-const SCOPED_FILE = `data/secret/${TAG}-scoped-key.json`;
+const SCOPED_FILE = secretPath(`-scoped-key.json`);
 const METHODS = ['mark_funded', 'record_chunk', 'begin_settlement', 'complete', 'expire'];
 let scoped = existsSync(SCOPED_FILE) ? JSON.parse(readFileSync(SCOPED_FILE, 'utf8')) : null;
 if (!scoped || scoped.receiver !== cfg.mandate) {
   const kp = KeyPair.fromRandom('ed25519');
   scoped = { publicKey: kp.getPublicKey().toString(), secretKey: kp.toString(), receiver: cfg.mandate, addTx: '' };
-  writeFileSync(SCOPED_FILE, JSON.stringify(scoped, null, 2));
+  writeSecretFile(SCOPED_FILE, JSON.stringify(scoped, null, 2));
   const r: any = await agentFull.addFunctionCallAccessKey({ publicKey: scoped.publicKey, contractId: cfg.mandate, methodNames: METHODS, allowance: NEAR(1) });
-  scoped.addTx = r.transaction?.hash ?? r.transaction_outcome?.id ?? ''; writeFileSync(SCOPED_FILE, JSON.stringify(scoped, null, 2));
+  scoped.addTx = r.transaction?.hash ?? r.transaction_outcome?.id ?? ''; writeSecretFile(SCOPED_FILE, JSON.stringify(scoped, null, 2));
   console.log('added function-call key', scoped.publicKey, scoped.addTx); await sleep(4000);
 }
 

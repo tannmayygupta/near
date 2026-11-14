@@ -18,13 +18,14 @@ import { KeyPair } from 'near-api-js';
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { ensureSecretDir, inspectSecretDir, secretPath, writeSecretFile, requireSafeSecretDir } from '../../src/near/secret-dir.js';
 import { RPC, accountFor, callTx, providerFor, TGAS } from '../../src/near/chain.js';
 import { dryQuoteFull } from '../../src/near/intents.js';
 import { LiveGuardError, SPEND_CAP_YOCTO, checkSettleGuards, getStatus, implicitAccountId, liveQuote, parseNearAmount, submitDeposit, waitForStatus } from '../../src/near/intents-live.js';
 import { DEST_ASSET, GAS_FLOAT, ORIGIN_ASSET, USDC, WRAP, explorerTx, runSettlement, type Journal, type SettlePort } from '../../src/near/intents-settle.js';
 
-const KEY_FILE = 'data/secret/mainnet-intents-key.json';
-const JOURNAL_FILE = 'data/secret/mainnet-intents-journal.json';
+const KEY_FILE = secretPath('mainnet-intents-key.json');          // <QT_SECRET_DIR or data/secret>/...
+const JOURNAL_FILE = secretPath('mainnet-intents-journal.json');
 const RUN_FILE = 'data/demo-run/intents-run.json';
 const PUBLIC_RUN_FILE = 'app/public/demo-run/intents-run.json';
 
@@ -122,7 +123,9 @@ if (!/^ed25519:[1-9A-HJ-NP-Za-km-z]{40,}$/.test(funderKey)) die(1, 'MAINNET_FUND
 await assertMainnetRpc();
 
 // the settlement key: generated once, saved BEFORE the first transaction (a crash can never orphan funds), never overwritten
-const ignored = spawnSync('git', ['check-ignore', '-q', KEY_FILE]).status === 0;
+requireSafeSecretDir(true); // real run: no keys into a cloud-synchronised folder
+const insideRepo = inspectSecretDir().insideRepo;
+const ignored = !insideRepo || spawnSync('git', ['check-ignore', '-q', KEY_FILE]).status === 0; // a secret directory outside the repository cannot be committed
 if (!ignored) die(1, `${KEY_FILE} is not git-ignored (or git is unavailable): refusing to create a secret key file that could be committed`);
 let secretKey: string;
 if (existsSync(KEY_FILE)) {
@@ -133,7 +136,7 @@ if (existsSync(KEY_FILE)) {
 } else {
   const kp = KeyPair.fromRandom('ed25519');
   secretKey = kp.toString();
-  mkdirSync('data/secret', { recursive: true });
+  ensureSecretDir();
   writeFileSync(KEY_FILE, JSON.stringify({ accountId: implicitAccountId(kp.getPublicKey().data), publicKey: kp.getPublicKey().toString(), secretKey, createdAt: new Date().toISOString(), note: 'settlement account of scripts/mainnet/intents-settle.ts; whoever holds this file controls the account' }, null, 2), { flag: 'wx' });
   console.log(`generated a settlement key and saved it to ${KEY_FILE} (git-ignored). BACK IT UP if the run is interrupted.`);
 }
@@ -159,7 +162,7 @@ const port: SettlePort = {
   submitDeposit: (input) => submitDeposit({ ...input, jwt: JWT }),
   waitForStatus: (input) => waitForStatus({ ...input, jwt: JWT, onUpdate: (s) => console.log(`  1Click status: ${s.status}`) }),
   loadJournal: () => (existsSync(JOURNAL_FILE) ? (JSON.parse(readFileSync(JOURNAL_FILE, 'utf8')) as Journal) : undefined),
-  saveJournal: (j) => { mkdirSync('data/secret', { recursive: true }); writeFileSync(JOURNAL_FILE, JSON.stringify(j, null, 2)); },
+  saveJournal: (j) => { writeSecretFile(JOURNAL_FILE, JSON.stringify(j, null, 2)); },
 };
 
 let j: Journal;

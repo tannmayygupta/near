@@ -6,7 +6,7 @@ Most of the code and documentation in this repository was written with AI assist
 | Area | AI role | How it was verified |
 |---|---|---|
 | `contracts/mandate/` (Rust) | wrote the contract and its 36 tests (31 unit + 5 property tests; 37 with the migration feature) | `cargo test --release` in CI (`rust:1.99.1`); the deployed testnet contract's code hash equals the committed wasm (`npm run verify:contract`) |
-| `src/`, `worker/` (TypeScript) | wrote the engine, executor, guards, OutLayer/Sputnik/NEAR AI clients, adapters | 302 unit tests (`npm test`); four live end-to-end runs on public testnet that make real transactions (`npm run e2e:real`, `e2e:custody`, `e2e:sealed`, `e2e:restart`) |
+| `src/`, `worker/` (TypeScript) | wrote the engine, executor, guards, OutLayer/Sputnik/NEAR AI clients, adapters | 384 unit tests (`npm test`); four live end-to-end runs on public testnet that make real transactions (`npm run e2e:real`, `e2e:custody`, `e2e:sealed`, `e2e:restart`) |
 | `src/verify/` | wrote the independent verifier | runs offline on recorded proof bundles and must fail on tampered ones (`npm run verify`, tamper cases included) |
 | `app/` (Next.js dashboard) | wrote the pages | `next build` in CI; pages read the recorded runs and live testnet RPC; not every page was exercised in a real browser (see `docs/CLAIMS.md`) |
 | `docs/` | drafted all documents | every claim in `docs/CLAIMS.md` names its evidence file and a status; `npm run check:evidence` checks that every cited transaction exists |
